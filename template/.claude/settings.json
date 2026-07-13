@@ -8,6 +8,9 @@
       "Bash(npm run build:*)",
       "Bash(npx tsc:*)",
       "Bash(npx vitest:*)",
+      "Bash(.claude/scripts/kit-stats.sh:*)",
+      "Bash(.claude/scripts/kit-tune.sh:*)",
+      "Bash(.claude/scripts/kit-record.sh:*)",
       "Bash(git status)",
       "Bash(git diff:*)",
       "Bash(git log:*)",
@@ -43,6 +46,13 @@
         "matcher": "Edit|Write|MultiEdit",
         "hooks": [
           { "type": "command", "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/protect-files.sh" }
+        ]
+      }
+    ],
+    "SubagentStop": [
+      {
+        "hooks": [
+          { "type": "command", "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/metrics-subagent.sh", "timeout": 20 }
         ]
       }
     ],

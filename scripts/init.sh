@@ -31,11 +31,11 @@ fi
 # The canonical CLAUDE.md lives at the project root; drop the copy nested in .claude/.
 rm -f "$DEST/CLAUDE.md"
 
-# Ensure personal settings are gitignored.
+# Ensure personal settings + runtime metrics are gitignored.
 GI="$TARGET/.gitignore"
-if [ -f "$GI" ] && ! grep -q ".claude/settings.local.json" "$GI"; then
-  echo ".claude/settings.local.json" >> "$GI"
-fi
+touch "$GI"
+grep -q ".claude/settings.local.json" "$GI" || echo ".claude/settings.local.json" >> "$GI"
+grep -q ".claude/metrics/" "$GI"            || echo ".claude/metrics/" >> "$GI"
 
 echo "AgentAutoKit installed into $TARGET/.claude"
 echo "Next: verify with 'jq . $DEST/settings.json' and try '/init-kit <task>' in Claude Code."

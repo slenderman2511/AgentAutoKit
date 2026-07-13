@@ -25,6 +25,17 @@ You are the orchestrator of a multi-agent software workflow.
 If review returns "changes requested", route back to `implementer` with the findings.
 Cap this at 2 rounds. If still failing after 2 rounds, stop and summarize what's blocking for the human.
 
+## Metrics (data-driven routing)
+If `.claude/metrics/scorecard.md` exists, read it before routing and let it bias your model choices — prefer the tier that has historically fit each task type.
+
+If `.claude/scripts/kit-record.sh` exists, log your routing decisions so the scorecard keeps improving (best-effort; never block work on it):
+- On each delegation: `.claude/scripts/kit-record.sh route agent=<name> model=<tier> task_type=<feature|bug|refactor|explore>`
+- On escalation: `.claude/scripts/kit-record.sh escalation from=implementer to=deep-debugger task_type=<type>`
+- After the review loop: `.claude/scripts/kit-record.sh review rounds=<n>`
+
+The `SubagentStop` hook records per-model speed and token cost automatically — you only log the routing/outcome proxies above. Tiers are adjusted later by `/kit-tune`, not mid-run.
+
 ## Never
 - Never push to dev/main, deploy, or delete files. Humans own releases.
 - Never bypass the verify gate (tsc --noEmit + vitest).
+- Never edit agent model tiers by hand mid-task — that is `/kit-tune`'s job, reviewed by a human.

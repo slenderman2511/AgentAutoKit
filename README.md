@@ -15,6 +15,7 @@ The idea: instead of one general assistant doing everything, AgentAutoKit gives 
 - [The workflow, step by step](#the-workflow-step-by-step)
 - [A run, end to end](#a-run-end-to-end)
 - [Guardrails](#guardrails)
+- [Self-tuning: measure → score → re-allocate](#self-tuning-measure--score--re-allocate)
 - [Install & use](#install--use)
 - [Customizing](#customizing)
 - [License](#license)
@@ -31,7 +32,8 @@ Three moving parts:
 |------|------------|----------------|
 | **Agents** | 8 specialists with scoped tools + model tiers | `agents/` (plugin) · `template/.claude/agents/` |
 | **Guardrails** | Two shell hooks that block unsafe edits and un-verified finishes | `hooks/` · `template/.claude/hooks/` |
-| **Command** | `/init-kit` — the single entry point | `commands/` · `template/.claude/commands/` |
+| **Telemetry & tuning** | Per-model speed/cost + fit scoring that feeds routing back into itself | `scripts/` + `SubagentStop` hook |
+| **Commands** | `/init-kit` (entry), `/kit-stats` (scorecard), `/kit-tune` (re-allocate) | `commands/` · `template/.claude/commands/` |
 
 ---
 
@@ -245,6 +247,58 @@ Complementing the hooks, the template's `settings.json` sets **permission** poli
 - `deny` — reading `.env`/`*.pem`/`*.key`/`secrets/`, plus `rm -rf`, `git push`, and destructive `vercel` verbs (`deploy`, `--prod`, `promote`, `rollback`, `remove`, `env rm`, `domains`).
 - `allow` — safe read-only commands (`git status/diff/log`, `npm run lint/test/build`, `tsc`, `vitest`, `vercel env pull/list/logs`).
 - `ask` — `git commit`, `gh pr create`, `gh pr merge` (humans confirm).
+
+---
+
+## Self-tuning: measure → score → re-allocate
+
+The kit measures itself and feeds the numbers back into routing, so model allocation gets closer to your real workload over time instead of staying at hand-picked defaults.
+
+```mermaid
+flowchart LR
+  subgraph RUN["Each /init-kit run"]
+    direction TB
+    OR["orchestrator routes"] --> SUB["subagents do the work"]
+  end
+  SUB -->|"SubagentStop hook<br/>metrics-subagent.sh"| EV["events.jsonl<br/>speed + tokens per model"]
+  OR -->|"kit-record.sh<br/>route / escalation / review"| EV
+  VER["verify.sh · Stop hook"] -->|"pass / fail"| EV
+  EV -->|"/kit-stats"| SC["scorecard.json + .md<br/>fit score + cost per model"]
+  SC -->|"/kit-tune --apply<br/>only if ≥ min_samples"| FM["agent frontmatter<br/>model tier promoted / demoted"]
+  FM -->|"next run"| OR
+  SC -.->|"read at start of run"| OR
+```
+
+### What is measured, and how honestly
+
+Two halves, deliberately kept separate because they differ in how measurable they are:
+
+| Signal | Source | Reliability |
+|--------|--------|-------------|
+| **Speed & token cost per model** | `SubagentStop` hook parses the session transcript (`isSidechain` turns → model, `usage`, timestamps) | Directly measured |
+| **"Fit" per agent** | Pipeline **proxies** logged by the orchestrator: escalation to `deep-debugger`, review rounds, verify first-pass | Proxy — correlates with quality, not ground truth |
+
+There is no automatic quality oracle, so "fit" is defined as objective pipeline outcomes. For v1: `fit_score = 1 − escalation_rate` (an agent that keeps needing escalation is under-powered for its tasks).
+
+### The three commands / files
+
+- **Telemetry** lands in `.claude/metrics/events.jsonl` (git-ignored). Written by the `SubagentStop` hook (speed/cost), `verify.sh` (pass/fail), and `kit-record.sh` (routing/escalation/review, called by the orchestrator).
+- **`/kit-stats`** → aggregates events into `.claude/metrics/scorecard.{json,md}`: per-model p50/p95 duration + estimated cost, per-agent fit score, and pipeline health (verify first-pass rate, avg review rounds).
+- **`/kit-tune`** → reads the scorecard and, **only past a sample threshold**, moves an agent along the ladder `haiku → sonnet → opus`. Dry-run by default; `--apply` edits the `model:` frontmatter line and logs the decision to `tuning-log.md`. The edit is a normal diff a human reviews before committing.
+
+### Tuning thresholds
+
+Configurable in `.claude/metrics/tuning.json` (defaults shown):
+
+```json
+{ "min_samples": 20, "promote_if_fit_below": 0.6, "enable_demote": false, "demote_if_fit_above": 0.97 }
+```
+
+An agent is **promoted** one tier when it has ≥ `min_samples` runs and its fit score falls below `promote_if_fit_below`. Demotion (to save cost on over-provisioned agents) is opt-in. Token prices for the cost estimate live in `.claude/metrics/pricing.json` — set your real per-model rates.
+
+> **Honest limits:** the transcript format is internal and may change between Claude Code versions, so the parser is defensive and best-effort. Proxies correlate with quality but are not a substitute for it. Small samples are noisy — that is what `min_samples` guards against. Full auto-tune is scoped to a single reversible frontmatter edit, never anything destructive.
+
+> Full metrics only ships with the **template** install (it carries `scripts/`). A plugin-only install still gets the `SubagentStop` speed/cost telemetry, but add the `scripts/` + commands to your project for the scorecard and auto-tune.
 
 ---
 

@@ -1,11 +1,18 @@
 {
-  "description": "AgentAutoKit guardrails: protect sensitive files, verify tsc + vitest before finishing.",
+  "description": "AgentAutoKit guardrails + telemetry: protect sensitive files, verify tsc + vitest before finishing, and log per-model speed/cost.",
   "hooks": {
     "PreToolUse": [
       {
         "matcher": "Edit|Write|MultiEdit",
         "hooks": [
           { "type": "command", "command": "\"${CLAUDE_PLUGIN_ROOT}\"/hooks/protect-files.sh" }
+        ]
+      }
+    ],
+    "SubagentStop": [
+      {
+        "hooks": [
+          { "type": "command", "command": "\"${CLAUDE_PLUGIN_ROOT}\"/hooks/metrics-subagent.sh", "timeout": 20 }
         ]
       }
     ],

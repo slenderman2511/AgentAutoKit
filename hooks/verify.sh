@@ -15,6 +15,17 @@ cd "$ROOT" || exit 0
 OUTPUT=$(npx tsc --noEmit 2>&1 && npx vitest run --reporter=basic 2>&1)
 STATUS=$?
 
+# Telemetry: record whether the change cleared the verify gate (a fit proxy).
+MDIR="$ROOT/.claude/metrics"
+if mkdir -p "$MDIR" 2>/dev/null; then
+  PASS=$([ $STATUS -eq 0 ] && echo true || echo false)
+  jq -c -n --arg ts "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+           --arg session "$(echo "$INPUT" | jq -r '.session_id // "unknown"')" \
+           --argjson pass "$PASS" \
+           '{ts:$ts, session:$session, kind:"verify", pass:$pass}' \
+    >> "$MDIR/events.jsonl" 2>/dev/null || true
+fi
+
 if [ $STATUS -ne 0 ]; then
   jq -n --arg out "$(echo "$OUTPUT" | tail -60)" \
     '{decision:"block", reason:("Verification gate failed (tsc/vitest). Fix before finishing:\n" + $out)}'

@@ -1,3 +1,12 @@
 node_modules/
 .DS_Store
 .claude/settings.local.json
+# Runtime metrics (per-project telemetry, never committed)
+.claude/metrics/
+metrics/events.jsonl
+metrics/scorecard.*
+metrics/tuning-log.md
+metrics/.cursor-*
+
+# OMC runtime state
+.omc/
