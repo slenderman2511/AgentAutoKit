@@ -16,6 +16,7 @@ The idea: instead of one general assistant doing everything, AgentAutoKit gives 
 - [A run, end to end](#a-run-end-to-end)
 - [Guardrails](#guardrails)
 - [Self-tuning: measure → score → re-allocate](#self-tuning-measure--score--re-allocate)
+- [Live status line — see which agents are running](#live-status-line--see-which-agents-are-running)
 - [Install & use](#install--use)
 - [Customizing](#customizing)
 - [License](#license)
@@ -33,6 +34,7 @@ Three moving parts:
 | **Agents** | 8 specialists with scoped tools + model tiers | `agents/` (plugin) · `template/.claude/agents/` |
 | **Guardrails** | Two shell hooks that block unsafe edits and un-verified finishes | `hooks/` · `template/.claude/hooks/` |
 | **Telemetry & tuning** | Per-model speed/cost + fit scoring that feeds routing back into itself | `scripts/` + `SubagentStop` hook |
+| **Status line** | Live view of which agents are running (agent-panel rows + bottom bar) | `scripts/*statusline.sh` + `subagentStatusLine`/`statusLine` |
 | **Commands** | `/init-kit` (entry), `/kit-stats` (scorecard), `/kit-tune` (re-allocate) | `commands/` · `template/.claude/commands/` |
 
 ---
@@ -299,6 +301,54 @@ An agent is **promoted** one tier when it has ≥ `min_samples` runs and its fit
 > **Honest limits:** the transcript format is internal and may change between Claude Code versions, so the parser is defensive and best-effort. Proxies correlate with quality but are not a substitute for it. Small samples are noisy — that is what `min_samples` guards against. Full auto-tune is scoped to a single reversible frontmatter edit, never anything destructive.
 
 > Full metrics only ships with the **template** install (it carries `scripts/`). A plugin-only install still gets the `SubagentStop` speed/cost telemetry, but add the `scripts/` + commands to your project for the scorecard and auto-tune.
+
+---
+
+## Live status line — see which agents are running
+
+The kit surfaces running agents in **two places**, because Claude Code exposes two separate status hooks:
+
+**1. Agent panel rows — `subagentStatusLine`** (the authoritative one). Claude Code renders one row per active subagent below the prompt; the kit replaces the default `name · description · tokens` row with model tier, context usage, and status:
+
+```
+🤖 code-scout    haiku · 4% ctx   [running]
+🤖 implementer   sonnet · 22% ctx [running]
+🤖 code-reviewer opus · 6% ctx    [completed]
+```
+
+Claude Code passes a `tasks[]` array (id, name, model, `tokenCount`, `contextWindowSize`, status) on stdin once per refresh tick; the script (`scripts/subagent-statusline.sh`) prints one `{"id","content"}` line per row. This is the **only** status surface a plugin can ship, and the kit ships it in the plugin's `settings.json` — so it works for **both** plugin and template installs.
+
+**2. Bottom bar — `statusLine`** (template only). A compact one-liner with model, dir, git branch, and a rollup of active agents:
+
+```
+▸ Opus  agentautokit  ⎇ main  🤖 code-scout · implementer×2
+```
+
+- Script: `scripts/statusline.sh`. It detects active agents by diffing `Task` tool-use ids against completed `tool_result` ids in the transcript, and reuses the same transcript the metrics hook reads.
+- Set with `refreshInterval: 2` so it keeps updating **while a subagent runs** — the bottom bar is otherwise event-driven (it would only refresh when the main agent next speaks).
+- Shows `·idle·` when nothing is delegating.
+
+### Who can ship what
+
+| Surface | Setting key | Plugin can ship? | Where the kit puts it |
+|---------|-------------|:---:|-----------------------|
+| Agent-panel rows | `subagentStatusLine` | ✅ yes | plugin `settings.json` + `template/.claude/settings.json` |
+| Bottom bar | `statusLine` | ❌ no (project/user only) | `template/.claude/settings.json` |
+
+Per the [plugin reference](https://code.claude.com/docs/en/plugins-reference), a plugin's `settings.json` only honours the `agent` and `subagentStatusLine` keys — `statusLine` must live in project or user settings. A plugin-only install therefore gets the agent-panel rows automatically; add the `statusLine` block to your `.claude/settings.json` if you also want the bottom-bar rollup:
+
+```json
+{
+  "statusLine": {
+    "type": "command",
+    "command": "$CLAUDE_PROJECT_DIR/.claude/scripts/statusline.sh",
+    "padding": 0,
+    "refreshInterval": 2
+  }
+}
+```
+
+> Project settings override a user-level status line, so inside kit projects the bottom bar replaces your global one — edit or remove the block to keep yours. The bottom-bar active-agent rollup assumes the classic CLI transcript layout; it degrades to model + branch elsewhere, while the agent-panel rows use Claude Code's native `tasks[]` data and always work.
 
 ---
 
