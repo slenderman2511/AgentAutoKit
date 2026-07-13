@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-marketplace.json",
+  "name": "agent-auto-kit-marketplace",
+  "description": "Multi-agent workflow kit for npm/TypeScript/Vitest/Vercel projects — orchestrator, scouts, reviewers, and guardrail hooks.",
+  "owner": { "name": "slenderman2511" },
+  "plugins": [
+    {
+      "name": "agent-auto-kit",
+      "source": "./",
+      "description": "Multi-agent workflow kit for npm/TS/Vitest/Vercel with built-in guardrails."
+    }
+  ]
+}
