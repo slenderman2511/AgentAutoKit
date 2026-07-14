@@ -280,12 +280,12 @@ Two halves, deliberately kept separate because they differ in how measurable the
 | **Speed & token cost per model** | `SubagentStop` hook parses the session transcript (`isSidechain` turns → model, `usage`, timestamps) | Directly measured |
 | **"Fit" per agent** | Pipeline **proxies** logged by the orchestrator: escalation to `deep-debugger`, review rounds, verify first-pass | Proxy — correlates with quality, not ground truth |
 
-There is no automatic quality oracle, so "fit" is defined as objective pipeline outcomes. For v1: `fit_score = 1 − escalation_rate` (an agent that keeps needing escalation is under-powered for its tasks).
+There is no automatic quality oracle, so "fit" is defined as objective pipeline outcomes. For v1: `fit_score = 1 − escalation_rate` (an agent that keeps needing escalation is under-powered for its tasks). Fit is computed **per (agent, tier)** — the route events record which tier the agent was on — so after a promotion the new tier starts with a clean score instead of inheriting the failures that caused the promotion.
 
 ### The three commands / files
 
 - **Telemetry** lands in `.claude/metrics/events.jsonl` (git-ignored). Written by the `SubagentStop` hook (speed/cost), `verify.sh` (pass/fail), and `kit-record.sh` (routing/escalation/review, called by the orchestrator).
-- **`/kit-stats`** → aggregates events into `.claude/metrics/scorecard.{json,md}`: per-model p50/p95 duration + estimated cost, per-agent fit score, and pipeline health (verify first-pass rate, avg review rounds).
+- **`/kit-stats`** → aggregates events into `.claude/metrics/scorecard.{json,md}`: per-model p50/p95 duration + estimated cost (including cache read/write tokens, which dominate real Claude Code usage), per-(agent, tier) fit score, and pipeline health (verify first-pass rate, avg review rounds).
 - **`/kit-tune`** → reads the scorecard and, **only past a sample threshold**, moves an agent along the ladder `haiku → sonnet → opus`. Dry-run by default; `--apply` edits the `model:` frontmatter line and logs the decision to `tuning-log.md`. The edit is a normal diff a human reviews before committing.
 
 ### Tuning thresholds
@@ -296,7 +296,15 @@ Configurable in `.claude/metrics/tuning.json` (defaults shown):
 { "min_samples": 20, "promote_if_fit_below": 0.6, "enable_demote": false, "demote_if_fit_above": 0.97 }
 ```
 
-An agent is **promoted** one tier when it has ≥ `min_samples` runs and its fit score falls below `promote_if_fit_below`. Demotion (to save cost on over-provisioned agents) is opt-in. Token prices for the cost estimate live in `.claude/metrics/pricing.json` — set your real per-model rates.
+An agent is **promoted** one tier when it has ≥ `min_samples` runs **on its current tier** and the fit score for that tier falls below `promote_if_fit_below` (rows from tiers the agent has since left are ignored). Demotion (to save cost on over-provisioned agents) is opt-in — and it additionally requires the agent to have at least one escalation on record: agents with no escalation path (scout, advisors, reviewers) have a fit score pinned at 1.0, which says nothing about over-provisioning, so blind demotion would slowly ratchet the whole team down to haiku.
+
+Token prices for the cost estimate live in `.claude/metrics/pricing.json` — set your real per-model rates, including cache pricing:
+
+```json
+{ "sonnet": { "in": 3, "out": 15, "cache_read": 0.3, "cache_write": 3.75 } }
+```
+
+`cache_read`/`cache_write` default to 0.1× / 1.25× of `in` when omitted.
 
 > **Honest limits:** the transcript format is internal and may change between Claude Code versions, so the parser is defensive and best-effort. Proxies correlate with quality but are not a substitute for it. Small samples are noisy — that is what `min_samples` guards against. Full auto-tune is scoped to a single reversible frontmatter edit, never anything destructive.
 

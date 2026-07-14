@@ -12,7 +12,14 @@ cd "$ROOT" || exit 0
 # Skip gracefully if no package.json (nothing to verify).
 [ -f package.json ] || exit 0
 
-OUTPUT=$(npx tsc --noEmit 2>&1 && npx vitest run --reporter=basic 2>&1)
+# Chat-only sessions have nothing to verify — running the gate would only
+# pollute the verify-rate telemetry with events unrelated to any change.
+if git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+  [ -z "$(git status --porcelain 2>/dev/null)" ] && exit 0
+fi
+
+# --passWithNoTests: a project without test files is not a failing gate.
+OUTPUT=$(npx tsc --noEmit 2>&1 && npx vitest run --reporter=basic --passWithNoTests 2>&1)
 STATUS=$?
 
 # Telemetry: record whether the change cleared the verify gate (a fit proxy).
