@@ -9,6 +9,7 @@ The idea: instead of one general assistant doing everything, AgentAutoKit gives 
 ## Table of contents
 
 - [Product at a glance](#product-at-a-glance)
+- [Install & use](#install--use)
 - [Full inventory: every tool & feature](#full-inventory-every-tool--feature)
 - [How it is delivered](#how-it-is-delivered)
 - [The agent team](#the-agent-team)
@@ -41,6 +42,69 @@ The moving parts:
 | **Skills** | 8 auto-loaded skills: framework best practices + domain workflows | `skills/` · `template/.claude/skills/` |
 | **Companion plugins** | 9 plugins declared for the whole team via `enabledPlugins` | `template/.claude/settings.json` |
 | **Installer** | Idempotent merge-aware `init.sh` — installs, upgrades, never clobbers | `scripts/init.sh` |
+
+---
+
+## Install & use
+
+Pick ONE of the two surfaces per project — never both, or agents, commands and skills load twice under the same names.
+
+### A) As a repo template (recommended — carries permission rules + companion plugins)
+
+```bash
+git clone https://github.com/slenderman2511/AgentAutoKit
+./AgentAutoKit/scripts/init.sh /path/to/your/project            # install or upgrade
+./AgentAutoKit/scripts/init.sh /path/to/your/project --dry-run  # preview what would change
+```
+
+This merges `.claude/` (agents, commands, hooks, skills, **settings.json with permission deny rules and the companion-plugin roster**) and a root `CLAUDE.md` into your project.
+
+**Upgrading** = `git pull` in the kit clone, then re-run the same `init.sh` command. It is idempotent and merge-safe:
+
+- Missing files installed; identical files skipped; drifted files **synced to the kit's version** and listed for `git diff` review.
+- Files your project added itself (extra skills, agents, commands) are never touched — no duplicates, no conflicts.
+- `settings.json` is **deep-merged, never overwritten**: your permission rules, hooks, `enabledPlugins` and marketplaces are kept; the kit only fills gaps. To permanently opt out of a kit-declared plugin, set it to `false` instead of deleting the key (a deleted key gets re-filled on the next upgrade).
+- An existing root `CLAUDE.md` is never overwritten; the installed kit version is stamped in `.claude/.agentautokit-version`.
+
+### B) As a Claude Code plugin (agents/commands/hooks/skills, no permission rules)
+
+**Step 1 — register the marketplace (once per machine).** This step is required: `plugin install` and `marketplace update` only know marketplaces you have added, so skipping it fails with `Marketplace 'agent-auto-kit-marketplace' not found`.
+
+```bash
+claude plugin marketplace add slenderman2511/AgentAutoKit
+```
+
+(or `/plugin marketplace add slenderman2511/AgentAutoKit` inside a session). If this repo is private for you, your machine needs git credentials that can read it — run `gh auth login` first.
+
+**Step 2 — install:**
+
+```bash
+claude plugin install agent-auto-kit@agent-auto-kit-marketplace
+```
+
+**Upgrading** (Claude Code caches plugins and only re-pulls when `version` in `plugin.json` changes):
+
+```bash
+claude plugin marketplace update agent-auto-kit-marketplace   # refresh the marketplace clone
+claude plugin update agent-auto-kit                           # pull the new plugin version
+```
+
+Check what you have with `claude plugin marketplace list` and `claude plugin list`.
+
+Local test without installing:
+
+```bash
+claude --plugin-dir ./AgentAutoKit
+claude plugin validate ./AgentAutoKit --strict
+```
+
+> **Important:** a plugin cannot ship permission rules or `enabledPlugins` (Claude Code only reads `agent`/`subagentStatusLine` from a plugin's settings). If you install via the plugin, add the deny rules to your project's `.claude/settings.json` yourself — copy them from [`template/.claude/settings.json`](template/.claude/settings.json).
+
+### Then, in any installed project
+
+```
+/init-kit "add rate limiting to the login endpoint"
+```
 
 ---
 
@@ -452,72 +516,6 @@ Per the [plugin reference](https://code.claude.com/docs/en/plugins-reference), a
 ```
 
 > Project settings override a user-level status line, so inside kit projects the bottom bar replaces your global one — edit or remove the block to keep yours. The bottom-bar active-agent rollup assumes the classic CLI transcript layout; it degrades to model + branch elsewhere, while the agent-panel rows use Claude Code's native `tasks[]` data and always work.
-
----
-
-## Install & use
-
-### A) As a repo template (recommended — carries permission rules)
-
-```bash
-git clone https://github.com/slenderman2511/AgentAutoKit
-./AgentAutoKit/scripts/init.sh /path/to/your/project
-```
-
-This merges `.claude/` (agents, commands, hooks, skills, **settings.json with permission deny rules**) and a root `CLAUDE.md` into your project. `init.sh` is **idempotent and upgrade-safe** — re-run it against a newer kit checkout to upgrade:
-
-- Missing files are installed; identical files are skipped; files that differ from the kit are **updated to the kit's version** (sync) and listed for `git diff` review.
-- Anything the project added itself (extra skills, agents, commands) is never touched — no duplicates, no conflicts.
-- `settings.json` is **deep-merged, never overwritten**: your permission rules, hooks, `enabledPlugins` and marketplaces are kept; the kit only fills gaps (permission lists are unioned; a plugin you already enabled is never re-added or version-fought).
-- To *permanently* opt out of a kit-declared plugin, set it to `false` in your `enabledPlugins` instead of deleting the key — a deleted key gets re-filled on the next upgrade, a `false` stays `false`.
-- An existing root `CLAUDE.md` is never overwritten; the installed kit version is stamped in `.claude/.agentautokit-version`.
-- `--dry-run` shows what would change without writing.
-
-> Don't run both surfaces in one project: if the `agent-auto-kit` plugin is installed, skip the template (or uninstall the plugin) — otherwise agents, commands and skills load twice under the same names.
-
-### B) As a Claude Code plugin (reusable agents/commands/hooks)
-
-```
-/plugin marketplace add slenderman2511/AgentAutoKit
-/plugin install agent-auto-kit@agent-auto-kit-marketplace
-```
-
-Upgrading to a new release (Claude Code caches plugins and only re-pulls when the `version` in `plugin.json` changes):
-
-```bash
-claude plugin marketplace update agent-auto-kit-marketplace   # refresh the marketplace clone
-claude plugin update agent-auto-kit                           # pull the new plugin version
-```
-
-Template installs upgrade by re-running `scripts/init.sh` from a fresh checkout (it asks before overwriting).
-
-Local test without installing:
-
-```bash
-claude --plugin-dir ./AgentAutoKit
-claude plugin validate ./AgentAutoKit --strict
-```
-
-> **Important:** a plugin cannot ship permission rules (Claude Code only reads `agent`/`subagentStatusLine` from a plugin's settings). If you install via the plugin, add this to your project's `.claude/settings.json` manually:
-
-```json
-{
-  "permissions": {
-    "deny": [
-      "Read(./.env)", "Read(./.env.*)", "Read(./**/*.pem)", "Read(./**/*.key)", "Read(./**/secrets/**)",
-      "Bash(rm -rf:*)", "Bash(git push:*)",
-      "Bash(vercel deploy:*)", "Bash(vercel --prod:*)", "Bash(vercel promote:*)",
-      "Bash(vercel rollback:*)", "Bash(vercel remove:*)", "Bash(vercel env rm:*)", "Bash(vercel domains:*)"
-    ]
-  }
-}
-```
-
-### Then, in any installed project
-
-```
-/init-kit "add rate limiting to the login endpoint"
-```
 
 ---
 
