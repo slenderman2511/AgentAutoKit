@@ -20,7 +20,6 @@ The idea: instead of one general assistant doing everything, AgentAutoKit gives 
 - [Bundled skills & companion plugins](#bundled-skills--companion-plugins)
 - [Self-tuning: measure → score → re-allocate](#self-tuning-measure--score--re-allocate)
 - [Live status line — see which agents are running](#live-status-line--see-which-agents-are-running)
-- [Install & use](#install--use)
 - [Customizing](#customizing)
 - [License](#license)
 
