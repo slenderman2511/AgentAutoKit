@@ -14,12 +14,15 @@ cd "$ROOT" || exit 0
 
 # Chat-only sessions have nothing to verify — running the gate would only
 # pollute the verify-rate telemetry with events unrelated to any change.
+# Exclude .claude/metrics: this hook's own telemetry write must not count as
+# a dirty tree, or every Stop after the first re-runs the full gate.
 if git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
-  [ -z "$(git status --porcelain 2>/dev/null)" ] && exit 0
+  [ -z "$(git status --porcelain -- ':!.claude/metrics' 2>/dev/null)" ] && exit 0
 fi
 
 # --passWithNoTests: a project without test files is not a failing gate.
-OUTPUT=$(npx tsc --noEmit 2>&1 && npx vitest run --reporter=basic --passWithNoTests 2>&1)
+# --reporter=default: the 'basic' reporter was removed in Vitest 3.
+OUTPUT=$(npx tsc --noEmit 2>&1 && npx vitest run --reporter=default --passWithNoTests 2>&1)
 STATUS=$?
 
 # Telemetry: record whether the change cleared the verify gate (a fit proxy).

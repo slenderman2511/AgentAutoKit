@@ -1,7 +1,7 @@
 {
   "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
   "name": "agent-auto-kit",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "Reusable multi-agent workflow kit for npm + TypeScript + Vitest + Vercel projects. Ships an orchestrator, read-only scouts/reviewers, implementer/debugger, test-writer, guardrail hooks, and an init command.",
   "author": { "name": "slenderman2511" },
   "repository": "https://github.com/slenderman2511/AgentAutoKit",
