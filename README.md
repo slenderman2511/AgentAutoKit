@@ -378,6 +378,15 @@ This copies `.claude/` (agents, commands, hooks, **settings.json with permission
 /plugin install agent-auto-kit@agent-auto-kit-marketplace
 ```
 
+Upgrading to a new release (Claude Code caches plugins and only re-pulls when the `version` in `plugin.json` changes):
+
+```bash
+claude plugin marketplace update agent-auto-kit-marketplace   # refresh the marketplace clone
+claude plugin update agent-auto-kit                           # pull the new plugin version
+```
+
+Template installs upgrade by re-running `scripts/init.sh` from a fresh checkout (it asks before overwriting).
+
 Local test without installing:
 
 ```bash
