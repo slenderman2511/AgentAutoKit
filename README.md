@@ -274,7 +274,7 @@ The kit ships a set of skills (loaded automatically by Claude when relevant) and
 
 ### Companion plugins (declared in the template's `settings.json`)
 
-`enabledPlugins` + `extraKnownMarketplaces` in `template/.claude/settings.json` declare: `firebase`, `playground`, `playwright`, `github`, `code-review`, `context7` (all `@claude-plugins-official`), `hookify` (`@claude-code`), and `superpowers` (`@superpowers-marketplace`, obra's). When a teammate trusts the project folder, Claude Code surfaces these for install.
+`enabledPlugins` + `extraKnownMarketplaces` in `template/.claude/settings.json` declare: `firebase`, `playground`, `playwright`, `github`, `code-review`, `context7` (all `@claude-plugins-official`), `hookify` (`@claude-code`), `superpowers` (`@superpowers-marketplace`, obra's), and `claude-mem` (`@thedotmack`) for semantic cross-session memory — it captures tool activity, compresses it with Claude into local SQLite, and injects relevant context into new sessions. When a teammate trusts the project folder, Claude Code surfaces these for install.
 
 > Plugins cannot cascade-install other plugins — a plugin's own `settings.json` only honours `agent`/`subagentStatusLine`. So, like the permission rules, the companion-plugin declarations only ship with the **template**.
 

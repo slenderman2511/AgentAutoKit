@@ -6,6 +6,9 @@
     },
     "superpowers-marketplace": {
       "source": { "source": "github", "repo": "obra/superpowers-marketplace" }
+    },
+    "thedotmack": {
+      "source": { "source": "github", "repo": "thedotmack/claude-mem" }
     }
   },
   "enabledPlugins": {
@@ -16,7 +19,8 @@
     "code-review@claude-plugins-official": true,
     "context7@claude-plugins-official": true,
     "hookify@claude-code": true,
-    "superpowers@superpowers-marketplace": true
+    "superpowers@superpowers-marketplace": true,
+    "claude-mem@thedotmack": true
   },
   "statusLine": {
     "type": "command",
