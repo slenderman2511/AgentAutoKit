@@ -9,6 +9,7 @@ The idea: instead of one general assistant doing everything, AgentAutoKit gives 
 ## Table of contents
 
 - [Product at a glance](#product-at-a-glance)
+- [Full inventory: every tool & feature](#full-inventory-every-tool--feature)
 - [How it is delivered](#how-it-is-delivered)
 - [The agent team](#the-agent-team)
 - [Deep dive: what each agent does](#deep-dive-what-each-agent-does)
@@ -28,15 +29,79 @@ The idea: instead of one general assistant doing everything, AgentAutoKit gives 
 
 AgentAutoKit is a drop-in `.claude/` configuration. Once installed into a project, typing `/init-kit <task>` starts a coordinated pipeline: explore → (design) → implement → (debug) → test → review, with two hooks acting as a safety net on every edit and every attempt to finish.
 
-Three moving parts:
+The moving parts:
 
 | Part | What it is | Where it lives |
 |------|------------|----------------|
 | **Agents** | 8 specialists with scoped tools + model tiers | `agents/` (plugin) · `template/.claude/agents/` |
-| **Guardrails** | Two shell hooks that block unsafe edits and un-verified finishes | `hooks/` · `template/.claude/hooks/` |
+| **Guardrails** | Shell hooks that block unsafe edits and un-verified finishes | `hooks/` · `template/.claude/hooks/` |
 | **Telemetry & tuning** | Per-model speed/cost + fit scoring that feeds routing back into itself | `scripts/` + `SubagentStop` hook |
 | **Status line** | Live view of which agents are running (agent-panel rows + bottom bar) | `scripts/*statusline.sh` + `subagentStatusLine`/`statusLine` |
 | **Commands** | `/init-kit` (entry), `/kit-stats` (scorecard), `/kit-tune` (re-allocate) | `commands/` · `template/.claude/commands/` |
+| **Skills** | 8 auto-loaded skills: framework best practices + domain workflows | `skills/` · `template/.claude/skills/` |
+| **Companion plugins** | 9 plugins declared for the whole team via `enabledPlugins` | `template/.claude/settings.json` |
+| **Installer** | Idempotent merge-aware `init.sh` — installs, upgrades, never clobbers | `scripts/init.sh` |
+
+---
+
+## Full inventory: every tool & feature
+
+### The 8 agents
+
+| Agent | Tier | Access | Job |
+|-------|------|--------|-----|
+| `orchestrator` | opus | read-only + Agent | Judges difficulty, routes to specialists, re-plans on failure, logs routing telemetry. Never writes code. |
+| `code-scout` | haiku | read-only | Cheap fan-out exploration: locate code, map structure before anyone edits. |
+| `arch-advisor` | opus | read-only | Design/architecture decisions before implementation. |
+| `implementer` | sonnet | read-write | Routine feature/bugfix implementation. |
+| `deep-debugger` | opus | read-write | Escalation target: tests failing ≥2×, async/race conditions, subtle state bugs. |
+| `test-writer` | sonnet | read-write | Coverage for new/changed logic. |
+| `code-reviewer` | opus | read-only | Pre-PR review (runs in parallel with security-auditor, once per PR). |
+| `security-auditor` | opus | read-only | Pre-PR security pass on auth/API/rules surfaces. |
+
+### The 3 commands
+
+| Command | What it does |
+|---------|--------------|
+| `/init-kit <task>` | Entry point — kicks off the coordinated explore → design → implement → debug → test → review pipeline. |
+| `/kit-stats` | Aggregates telemetry into a scorecard: per-model p50/p95 duration + cost (incl. cache tokens), per-(agent, tier) fit score, pipeline health. |
+| `/kit-tune [--apply]` | Proposes (dry-run) or applies model-tier promotions/demotions from measured fit, guarded by `min_samples`. |
+
+### The guardrail hooks
+
+| Hook | Event | Enforcement |
+|------|-------|-------------|
+| `protect-files.sh` | `PreToolUse` (Edit/Write) | Blocks edits to `.env*`, secrets, keys, CI workflows, migrations. |
+| `verify.sh` | `Stop` | Blocks finishing until `tsc --noEmit` + `vitest run` are green on a dirty worktree; logs pass/fail telemetry. |
+| `metrics-subagent.sh` | `SubagentStop` | Measures every subagent run (tokens incl. cache, duration per sidechain) into `events.jsonl`. Never blocks. |
+
+Hooks are the kit's enforcement layer — CLAUDE.md only reminds; hooks make rules stick. The bundled **hookify** plugin authors new ones conversationally.
+
+### Telemetry & self-tuning (details [below](#self-tuning-measure--score--re-allocate))
+
+- Two-sided measurement: hard numbers from transcripts (speed/tokens/cost) + pipeline proxies from the orchestrator (escalations, review rounds, verify pass rate).
+- Fit scored per (agent, tier) so promotions are evaluated on fresh evidence; demotion is opt-in and requires a real escalation signal.
+- Auto-tune edits one reversible `model:` frontmatter line, dry-run by default, human-reviewed diff.
+
+### The 8 skills (details [below](#bundled-skills--companion-plugins))
+
+`frontend-design` · `next-best-practices` (+20 refs) · `playwright-best-practices` (~60 refs) · `e2e-flow` · `worktree-dev` · `roster-import` · `firestore-config-edit` · `conventions` — auto-loaded by Claude when the task matches their triggers.
+
+### The 9 companion plugins
+
+`firebase` · `playground` · `playwright` · `github` · `code-review` · `context7` (official marketplace) · `hookify` (claude-code) · `superpowers` (obra) · `claude-mem` (cross-session memory) — declared once in the template's `settings.json`, offered to every teammate who trusts the folder.
+
+### Permission guardrails (template only)
+
+`deny` on secret reads (`.env*`, `*.pem`, `*.key`), destructive shell (`rm -rf`), `git push`, and all deploy commands; `ask` on commits and PR creation; `allow` on the safe everyday loop (lint/test/build/tsc/vitest, kit scripts, read-only git/vercel).
+
+### Live status line
+
+Agent-panel rows per running subagent + a bottom-bar rollup, driven by `statusline.sh`/`subagent-statusline.sh`.
+
+### Merge-aware installer
+
+`init.sh` installs missing files, skips identical ones, syncs drifted ones (listed for `git diff` review), deep-merges `settings.json` (project values win; permission lists unioned; already-enabled plugins never re-added), never touches project-added files, stamps `.claude/.agentautokit-version`, supports `--dry-run`.
 
 ---
 
