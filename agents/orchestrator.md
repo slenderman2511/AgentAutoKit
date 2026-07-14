@@ -30,7 +30,7 @@ If `.claude/metrics/scorecard.md` exists, read it before routing and let it bias
 
 If `.claude/scripts/kit-record.sh` exists, log your routing decisions so the scorecard keeps improving (best-effort; never block work on it):
 - On each delegation: `.claude/scripts/kit-record.sh route agent=<name> model=<tier> task_type=<feature|bug|refactor|explore>`
-- On escalation: `.claude/scripts/kit-record.sh escalation from=implementer to=deep-debugger task_type=<type>`
+- On escalation: `.claude/scripts/kit-record.sh escalation from=implementer to=deep-debugger model=<tier of the from agent> task_type=<type>`
 - After the review loop: `.claude/scripts/kit-record.sh review rounds=<n>`
 
 The `SubagentStop` hook records per-model speed and token cost automatically — you only log the routing/outcome proxies above. Tiers are adjusted later by `/kit-tune`, not mid-run.
