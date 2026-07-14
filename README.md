@@ -399,7 +399,16 @@ git clone https://github.com/slenderman2511/AgentAutoKit
 ./AgentAutoKit/scripts/init.sh /path/to/your/project
 ```
 
-This copies `.claude/` (agents, commands, hooks, **settings.json with permission deny rules**) and a root `CLAUDE.md` into your project.
+This merges `.claude/` (agents, commands, hooks, skills, **settings.json with permission deny rules**) and a root `CLAUDE.md` into your project. `init.sh` is **idempotent and upgrade-safe** — re-run it against a newer kit checkout to upgrade:
+
+- Missing files are installed; identical files are skipped; files that differ from the kit are **updated to the kit's version** (sync) and listed for `git diff` review.
+- Anything the project added itself (extra skills, agents, commands) is never touched — no duplicates, no conflicts.
+- `settings.json` is **deep-merged, never overwritten**: your permission rules, hooks, `enabledPlugins` and marketplaces are kept; the kit only fills gaps (permission lists are unioned; a plugin you already enabled is never re-added or version-fought).
+- To *permanently* opt out of a kit-declared plugin, set it to `false` in your `enabledPlugins` instead of deleting the key — a deleted key gets re-filled on the next upgrade, a `false` stays `false`.
+- An existing root `CLAUDE.md` is never overwritten; the installed kit version is stamped in `.claude/.agentautokit-version`.
+- `--dry-run` shows what would change without writing.
+
+> Don't run both surfaces in one project: if the `agent-auto-kit` plugin is installed, skip the template (or uninstall the plugin) — otherwise agents, commands and skills load twice under the same names.
 
 ### B) As a Claude Code plugin (reusable agents/commands/hooks)
 
