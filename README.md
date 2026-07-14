@@ -15,6 +15,7 @@ The idea: instead of one general assistant doing everything, AgentAutoKit gives 
 - [The workflow, step by step](#the-workflow-step-by-step)
 - [A run, end to end](#a-run-end-to-end)
 - [Guardrails](#guardrails)
+- [Bundled skills & companion plugins](#bundled-skills--companion-plugins)
 - [Self-tuning: measure → score → re-allocate](#self-tuning-measure--score--re-allocate)
 - [Live status line — see which agents are running](#live-status-line--see-which-agents-are-running)
 - [Install & use](#install--use)
@@ -252,6 +253,35 @@ Complementing the hooks, the template's `settings.json` sets **permission** poli
 
 ---
 
+## Bundled skills & companion plugins
+
+The kit ships a set of skills (loaded automatically by Claude when relevant) and declares a set of companion plugins that projects installed from the **template** pick up when the folder is trusted.
+
+### Skills (`skills/` · `template/.claude/skills/`)
+
+| Skill | What it covers | Origin |
+|-------|----------------|--------|
+| `frontend-design` | Distinctive, production-grade UI work — avoids generic "AI slop" aesthetics | Anthropic (see LICENSE.txt) |
+| `next-best-practices` | Next.js App Router conventions: RSC boundaries, data patterns, metadata, error handling (+20 reference files) | Vercel-style reference |
+| `playwright-best-practices` | Full Playwright discipline: locators, flakiness, POM, CI/CD, auth, mocking (~60 reference files) | currents.dev, MIT |
+| `e2e-flow` | Running/authoring full user-journey Playwright specs (dev server, seeding, Stripe test checkout, bilingual selectors) | authored from pickleball-tour |
+| `worktree-dev` | Feature work in isolated git worktrees under `.claude/worktrees/` — deps, env, ports, merge-back, cleanup | authored from pickleball-tour |
+| `roster-import` | Safe XLSX → Firestore roster import pipeline: assess dups → dry-run → apply → verify → rollback | authored from pickleball-tour |
+| `firestore-config-edit` | Editing/seeding/syncing Firestore config + rules deploys, dev-first, with hard safety rules | authored from pickleball-tour |
+| `conventions` | The kit's own coding conventions | kit |
+
+`roster-import` and `firestore-config-edit` are domain-specific (tournament apps on Firebase); delete their folders from projects where they don't apply.
+
+### Companion plugins (declared in the template's `settings.json`)
+
+`enabledPlugins` + `extraKnownMarketplaces` in `template/.claude/settings.json` declare: `firebase`, `playground`, `playwright`, `github`, `code-review`, `context7` (all `@claude-plugins-official`), `hookify` (`@claude-code`), `superpowers` (`@superpowers-marketplace`, obra's), and `claude-mem` (`@thedotmack`) for semantic cross-session memory — it captures tool activity, compresses it with Claude into local SQLite, and injects relevant context into new sessions. When a teammate trusts the project folder, Claude Code surfaces these for install.
+
+> Plugins cannot cascade-install other plugins — a plugin's own `settings.json` only honours `agent`/`subagentStatusLine`. So, like the permission rules, the companion-plugin declarations only ship with the **template**.
+
+Why `hookify` is on the list: hooks are the only real enforcement mechanism in Claude Code — CLAUDE.md reminds, but an agent can forget. Anything that must always happen belongs in a hook, and hookify makes authoring them conversational.
+
+---
+
 ## Self-tuning: measure → score → re-allocate
 
 The kit measures itself and feeds the numbers back into routing, so model allocation gets closer to your real workload over time instead of staying at hand-picked defaults.
@@ -369,7 +399,16 @@ git clone https://github.com/slenderman2511/AgentAutoKit
 ./AgentAutoKit/scripts/init.sh /path/to/your/project
 ```
 
-This copies `.claude/` (agents, commands, hooks, **settings.json with permission deny rules**) and a root `CLAUDE.md` into your project.
+This merges `.claude/` (agents, commands, hooks, skills, **settings.json with permission deny rules**) and a root `CLAUDE.md` into your project. `init.sh` is **idempotent and upgrade-safe** — re-run it against a newer kit checkout to upgrade:
+
+- Missing files are installed; identical files are skipped; files that differ from the kit are **updated to the kit's version** (sync) and listed for `git diff` review.
+- Anything the project added itself (extra skills, agents, commands) is never touched — no duplicates, no conflicts.
+- `settings.json` is **deep-merged, never overwritten**: your permission rules, hooks, `enabledPlugins` and marketplaces are kept; the kit only fills gaps (permission lists are unioned; a plugin you already enabled is never re-added or version-fought).
+- To *permanently* opt out of a kit-declared plugin, set it to `false` in your `enabledPlugins` instead of deleting the key — a deleted key gets re-filled on the next upgrade, a `false` stays `false`.
+- An existing root `CLAUDE.md` is never overwritten; the installed kit version is stamped in `.claude/.agentautokit-version`.
+- `--dry-run` shows what would change without writing.
+
+> Don't run both surfaces in one project: if the `agent-auto-kit` plugin is installed, skip the template (or uninstall the plugin) — otherwise agents, commands and skills load twice under the same names.
 
 ### B) As a Claude Code plugin (reusable agents/commands/hooks)
 

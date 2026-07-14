@@ -13,6 +13,11 @@ Multi-agent workflow managed by AgentAutoKit.
 - Source in `src/`, tests colocated as `*.test.ts`
 - Deploys via Vercel (preview on PR, prod on main)
 
+## Skills & companion plugins
+- Bundled skills (`.claude/skills/`): `frontend-design`, `next-best-practices`, `playwright-best-practices`, `e2e-flow`, `worktree-dev`, `roster-import`, `firestore-config-edit`, `conventions`. Claude loads them automatically when relevant.
+- Companion plugins are declared in `.claude/settings.json` (`enabledPlugins`): firebase, playground, playwright, github, code-review, context7 (official marketplace), hookify (claude-code marketplace), superpowers (obra's marketplace), claude-mem (thedotmack — cross-session memory). Claude Code offers them for install when you trust this folder.
+- Hooks are the only real enforcement mechanism — CLAUDE.md reminds, but an agent can forget. Anything that MUST happen belongs in a hook (use the hookify plugin to author new ones), not just in this file.
+
 ## Workflow
 - Start coordinated work with `/init-kit <description>`.
 - The orchestrator routes: code-scout → arch-advisor → implementer → (deep-debugger) → test-writer → code-reviewer ∥ security-auditor.
