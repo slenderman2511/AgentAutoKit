@@ -148,7 +148,7 @@ Hooks are the kit's enforcement layer — CLAUDE.md only reminds; hooks make rul
 
 ### The 9 skills (details [below](#bundled-skills--companion-plugins))
 
-`frontend-design` · `next-best-practices` (+20 refs) · `playwright-best-practices` (~60 refs) · `e2e-flow` · `worktree-dev` · `roster-import` · `firestore-config-edit` · `firebase-best-practices` (+5 refs) · `conventions` — auto-loaded by Claude when the task matches their triggers.
+`frontend-design` · `next-best-practices` (+20 refs) · `playwright-best-practices` (~60 refs) · `e2e-flow` · `worktree-dev` · `roster-import` · `firestore-config-edit` · `firebase-best-practices` (+8 refs) · `conventions` — auto-loaded by Claude when the task matches their triggers.
 
 ### The 9 companion plugins
 
@@ -396,7 +396,7 @@ The kit ships a set of skills (loaded automatically by Claude when relevant) and
 | `worktree-dev` | Feature work in isolated git worktrees under `.claude/worktrees/` — deps, env, ports, merge-back, cleanup | authored from pickleball-tour |
 | `roster-import` | Safe XLSX → Firestore roster import pipeline: assess dups → dry-run → apply → verify → rollback | authored from pickleball-tour |
 | `firestore-config-edit` | Editing/seeding/syncing Firestore config + rules deploys, dev-first, with hard safety rules | authored from pickleball-tour |
-| `firebase-best-practices` | Reusable Firebase correctness bar: security rules, RBAC/role standardization, Auth hardening, index optimization (5 reference files) | kit |
+| `firebase-best-practices` | Reusable Firebase correctness bar: security rules, RBAC/role standardization, Auth hardening, index optimization, Cloud Functions, Realtime Database, Remote Config (8 reference files) | kit |
 | `conventions` | The kit's own coding conventions | kit |
 
 `roster-import` and `firestore-config-edit` are domain-specific (tournament apps on Firebase); delete their folders from projects where they don't apply.

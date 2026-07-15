@@ -1,6 +1,6 @@
 ---
 name: firebase-best-practices
-description: Apply Firebase best practices when writing, reviewing, correcting, or hardening Firebase code and config — Firestore/Storage security rules, composite & single-field indexes (firestore.indexes.json), Firebase Auth, and role/permission (RBAC) design. Use when asked to "fix/optimize Firestore indexes", "audit/tighten security rules", "standardize roles", "set up custom claims", "make this Firebase project production-safe", or when reviewing any .rules / indexes.json / Auth / custom-claims code. For project-specific Firestore config editing/seeding/deploys, defer to firestore-config-edit.
+description: Apply Firebase best practices when writing, reviewing, correcting, or hardening Firebase code and config — Firestore/Storage security rules, composite & single-field indexes (firestore.indexes.json), Firebase Auth, role/permission (RBAC) design, Cloud Functions, Realtime Database, and Remote Config. Use when asked to "fix/optimize Firestore indexes", "audit/tighten security rules", "standardize roles", "set up custom claims", "harden a Cloud Function", "write Realtime Database rules", "make this Firebase project production-safe", or when reviewing any .rules / indexes.json / Auth / functions / RTDB / Remote Config code. For project-specific Firestore config editing/seeding/deploys, defer to firestore-config-edit.
 user-invocable: false
 ---
 
@@ -36,6 +36,15 @@ Consult these based on what you're doing:
 ### Fixing or optimizing indexes & queries
 [indexes.md](./indexes.md) — single-field (auto) vs composite (manual) indexes, when a composite index is required, single-field exemptions to cut write cost / dodge limits, collection-group indexes, query optimization (cursor pagination, `count()`, denormalization), the missing-index error→link→CLI flow, TTL policies, and the storage/write cost model.
 
+### Writing or hardening Cloud Functions
+[cloud-functions.md](./cloud-functions.md) — `onCall` vs `onRequest` vs background triggers and their auth models, never-trust-the-client, idempotency for at-least-once delivery, cold-start/concurrency/cost tuning, secrets via Secret Manager, and `HttpsError` handling.
+
+### Realtime Database (different from Firestore)
+[realtime-database.md](./realtime-database.md) — the RTDB rules dialect (cascading `.read`/`.write`, `.validate`, `.indexOn`), RTDB-vs-Firestore choice, flatten-don't-nest modeling, atomic fan-out writes, query indexing, and bandwidth/cost.
+
+### Remote Config
+[remote-config.md](./remote-config.md) — the public-config trust boundary (no secrets, no security gates), in-app defaults, parameter naming, fetch throttling / fetch-vs-activate, and staged rollouts with version-history rollback.
+
 ### Running a full correction pass
 [review-checklist.md](./review-checklist.md) — the audit → correct → verify protocol: which files to open, the red-flag list, and the dev-first deploy gate.
 
@@ -43,7 +52,7 @@ Consult these based on what you're doing:
 
 When asked to "make this Firebase project correct/optimized":
 
-1. **Locate the artifacts**: `firestore.rules`, `storage.rules`, `firestore.indexes.json`, `firebase.json`, and Auth/custom-claims code (search for `setCustomUserClaims`, `request.auth.token`, `getIdToken`).
+1. **Locate the artifacts**: `firestore.rules`, `storage.rules`, `database.rules.json` (RTDB), `firestore.indexes.json`, `firebase.json`, the `functions/` source, and Auth/custom-claims code (search for `setCustomUserClaims`, `request.auth.token`, `getIdToken`, `onCall`, `onRequest`).
 2. **Audit** against [review-checklist.md](./review-checklist.md) — record concrete findings with file:line.
 3. **Fix** the highest-severity issues first: open-access rules > missing validation > role inconsistencies > missing/wasteful indexes.
 4. **Verify** with the emulator (rules unit tests, index-backed queries) before proposing any deploy.
