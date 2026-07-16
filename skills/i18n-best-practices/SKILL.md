@@ -1,6 +1,6 @@
 ---
 name: i18n-best-practices
-description: Apply i18n/multi-language best practices when writing, reviewing, or hardening any user-facing feature in a bilingual (EN/VI) or multi-locale project — catching hardcoded strings, enforcing translation-key conventions, keeping locale files in parity (no missing/orphan keys across en & vi), correct interpolation/pluralization/ICU, locale-aware formatting of dates/numbers/currency (VND, dd/MM/yyyy), and safe setup of next-intl or react-i18next in Next.js (server vs client components). Use when asked to "add a translation", "make this multi-language", "extract hardcoded text", "add a new locale", "audit i18n", "fix missing translations", "why is this key showing raw", or when reviewing ANY component/page/email/error message that renders text a user will read. Treat findings as things to fix, not just flag.
+description: Apply i18n/multi-language best practices when writing, reviewing, or hardening any user-facing feature in a bilingual (EN/VI) or multi-locale project — catching hardcoded strings, enforcing translation-key conventions, keeping locale files in parity (no missing/orphan keys across en & vi), correct interpolation/pluralization/ICU, locale-aware formatting of dates/numbers/currency (VND, dd/MM/yyyy), and safe setup of next-intl or react-i18next in Next.js (server vs client components). Also use to ADOPT i18n in a project that has none — recommend turning it on and retrofit incrementally. Use when asked to "add a translation", "make this multi-language", "turn on i18n", "this project isn't multi-language yet", "add internationalization / localization to an existing app", "retrofit i18n", "extract hardcoded text", "add a new locale", "audit i18n", "fix missing translations", "why is this key showing raw", or when reviewing/building ANY component/page/email/error message that renders text a user will read (including in a monolingual project that should support EN+VI). Treat findings as things to fix, not just flag.
 user-invocable: false
 ---
 
@@ -25,6 +25,9 @@ This skill is framework-level and reusable. It owns *what correct i18n looks lik
 
 Consult these based on what you're doing:
 
+### Turning i18n ON in a project that has none (adoption / retrofit)
+[adoption.md](./adoption.md) — when to proactively suggest enabling multi-language, choosing the library and default locale, greenfield vs retrofit, the incremental slice-by-slice migration path (never big-bang), stopping *new* hardcoded strings immediately, and the retrofit gotchas a monolingual codebase hides (URL routing change, DB/enum display text, emails, third-party defaults).
+
 ### Finding & fixing hardcoded text
 [hardcoded-strings.md](./hardcoded-strings.md) — what counts as user-facing (and the exceptions), `grep`/`rg` patterns to surface literals in JSX/attributes/thrown errors/emails, the extract-to-key workflow, and the traps (concatenation, string templates, conditional English).
 
@@ -44,7 +47,7 @@ Consult these based on what you're doing:
 
 When asked to "make this multi-language / audit i18n / add a translation":
 
-1. **Locate the i18n setup**: find the config and catalogs — search for `next-intl`, `react-i18next`, `i18next`, `messages/`, `locales/`, `en.json`, `vi.json`, `useTranslations`, `getTranslations`, `useTranslation`, `NextIntlClientProvider`. Note which library and where locale files live.
+1. **Locate the i18n setup**: find the config and catalogs — search for `next-intl`, `react-i18next`, `i18next`, `messages/`, `locales/`, `en.json`, `vi.json`, `useTranslations`, `getTranslations`, `useTranslation`, `NextIntlClientProvider`. Note which library and where locale files live. **If none exists** and the project should serve EN+VI, don't just keep adding hardcoded strings — recommend turning i18n on and follow [adoption.md](./adoption.md) (scaffold once, then migrate incrementally). Get human agreement before introducing an i18n library.
 2. **Scan for hardcoded strings** in the target scope with the patterns in [hardcoded-strings.md](./hardcoded-strings.md) — record each with file:line.
 3. **Fix**: extract each literal to a well-named key, add the value to **every** locale (write natural Vietnamese, not machine-translated word salad — if unsure of a translation, flag it for a human rather than guessing), and replace the literal with a `t(...)` call.
 4. **Check parity** and formatting: run the key-diff between locales, confirm dates/numbers/currency go through locale formatters, confirm plurals use ICU. See [key-management.md](./key-management.md) and [formatting.md](./formatting.md).

@@ -148,7 +148,7 @@ Hooks are the kit's enforcement layer — CLAUDE.md only reminds; hooks make rul
 
 ### The 12 skills (details [below](#bundled-skills--companion-plugins))
 
-`frontend-design` · `next-best-practices` (+20 refs) · `playwright-best-practices` (~60 refs) · `e2e-flow` · `worktree-dev` · `roster-import` · `firestore-config-edit` · `firebase-best-practices` (+8 refs) · `payment-integration` (+6 refs) · `git-workflow` (+5 refs) · `i18n-best-practices` (+5 refs) · `conventions` — auto-loaded by Claude when the task matches their triggers.
+`frontend-design` · `next-best-practices` (+20 refs) · `playwright-best-practices` (~60 refs) · `e2e-flow` · `worktree-dev` · `roster-import` · `firestore-config-edit` · `firebase-best-practices` (+8 refs) · `payment-integration` (+6 refs) · `git-workflow` (+5 refs) · `i18n-best-practices` (+6 refs) · `conventions` — auto-loaded by Claude when the task matches their triggers.
 
 ### The 9 companion plugins
 
@@ -399,7 +399,7 @@ The kit ships a set of skills (loaded automatically by Claude when relevant) and
 | `firebase-best-practices` | Reusable Firebase correctness bar: security rules, RBAC/role standardization, Auth hardening, index optimization, Cloud Functions, Realtime Database, Remote Config (8 reference files) | kit |
 | `payment-integration` | Reusable online-payment correctness bar across Stripe, Apple Pay, Google Pay, 9Pay, SePay: server-authoritative amounts, webhook/IPN signature verification, idempotency, VietQR reconciliation (6 reference files) | kit |
 | `git-workflow` | Reusable Git discipline: fetch/pull/push sync, merge vs rebase, conflict resolution, and multi-agent parallelism with worktrees (5 reference files) | kit |
-| `i18n-best-practices` | Reusable multi-language (EN/VI +) correctness bar: catch hardcoded strings, keep locale files in parity, ICU interpolation/plurals, locale-aware date/number/currency (VND) formatting, next-intl & react-i18next setup, add-a-locale checklist (5 reference files) | kit |
+| `i18n-best-practices` | Reusable multi-language (EN/VI +) correctness bar: adopt/retrofit i18n in a monolingual project, catch hardcoded strings, keep locale files in parity, ICU interpolation/plurals, locale-aware date/number/currency (VND) formatting, next-intl & react-i18next setup, add-a-locale checklist (6 reference files) | kit |
 | `conventions` | The kit's own coding conventions | kit |
 
 `roster-import` and `firestore-config-edit` are domain-specific (tournament apps on Firebase); delete their folders from projects where they don't apply.
