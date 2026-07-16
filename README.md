@@ -38,7 +38,7 @@ The moving parts:
 | **Telemetry & tuning** | Per-model speed/cost + fit scoring that feeds routing back into itself | `scripts/` + `SubagentStop` hook |
 | **Status line** | Live view of which agents are running (agent-panel rows + bottom bar) | `scripts/*statusline.sh` + `subagentStatusLine`/`statusLine` |
 | **Commands** | `/init-kit` (entry), `/kit-stats` (scorecard), `/kit-tune` (re-allocate) | `commands/` · `template/.claude/commands/` |
-| **Skills** | 11 auto-loaded skills: framework best practices + domain workflows | `skills/` · `template/.claude/skills/` |
+| **Skills** | 12 auto-loaded skills: framework best practices + domain workflows | `skills/` · `template/.claude/skills/` |
 | **Companion plugins** | 9 plugins declared for the whole team via `enabledPlugins` | `template/.claude/settings.json` |
 | **Installer** | Idempotent merge-aware `init.sh` — installs, upgrades, never clobbers | `scripts/init.sh` |
 
@@ -146,9 +146,9 @@ Hooks are the kit's enforcement layer — CLAUDE.md only reminds; hooks make rul
 - Fit scored per (agent, tier) so promotions are evaluated on fresh evidence; demotion is opt-in and requires a real escalation signal.
 - Auto-tune edits one reversible `model:` frontmatter line, dry-run by default, human-reviewed diff.
 
-### The 11 skills (details [below](#bundled-skills--companion-plugins))
+### The 12 skills (details [below](#bundled-skills--companion-plugins))
 
-`frontend-design` · `next-best-practices` (+20 refs) · `playwright-best-practices` (~60 refs) · `e2e-flow` · `worktree-dev` · `roster-import` · `firestore-config-edit` · `firebase-best-practices` (+8 refs) · `payment-integration` (+6 refs) · `git-workflow` (+5 refs) · `conventions` — auto-loaded by Claude when the task matches their triggers.
+`frontend-design` · `next-best-practices` (+20 refs) · `playwright-best-practices` (~60 refs) · `e2e-flow` · `worktree-dev` · `roster-import` · `firestore-config-edit` · `firebase-best-practices` (+8 refs) · `payment-integration` (+6 refs) · `git-workflow` (+5 refs) · `i18n-best-practices` (+5 refs) · `conventions` — auto-loaded by Claude when the task matches their triggers.
 
 ### The 9 companion plugins
 
@@ -399,6 +399,7 @@ The kit ships a set of skills (loaded automatically by Claude when relevant) and
 | `firebase-best-practices` | Reusable Firebase correctness bar: security rules, RBAC/role standardization, Auth hardening, index optimization, Cloud Functions, Realtime Database, Remote Config (8 reference files) | kit |
 | `payment-integration` | Reusable online-payment correctness bar across Stripe, Apple Pay, Google Pay, 9Pay, SePay: server-authoritative amounts, webhook/IPN signature verification, idempotency, VietQR reconciliation (6 reference files) | kit |
 | `git-workflow` | Reusable Git discipline: fetch/pull/push sync, merge vs rebase, conflict resolution, and multi-agent parallelism with worktrees (5 reference files) | kit |
+| `i18n-best-practices` | Reusable multi-language (EN/VI +) correctness bar: catch hardcoded strings, keep locale files in parity, ICU interpolation/plurals, locale-aware date/number/currency (VND) formatting, next-intl & react-i18next setup, add-a-locale checklist (5 reference files) | kit |
 | `conventions` | The kit's own coding conventions | kit |
 
 `roster-import` and `firestore-config-edit` are domain-specific (tournament apps on Firebase); delete their folders from projects where they don't apply.
