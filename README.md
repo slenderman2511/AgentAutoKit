@@ -38,7 +38,7 @@ The moving parts:
 | **Telemetry & tuning** | Per-model speed/cost + fit scoring that feeds routing back into itself | `scripts/` + `SubagentStop` hook |
 | **Status line** | Live view of which agents are running (agent-panel rows + bottom bar) | `scripts/*statusline.sh` + `subagentStatusLine`/`statusLine` |
 | **Commands** | `/init-kit` (entry), `/kit-stats` (scorecard), `/kit-tune` (re-allocate) | `commands/` · `template/.claude/commands/` |
-| **Skills** | 13 auto-loaded skills: framework best practices + domain workflows | `skills/` · `template/.claude/skills/` |
+| **Skills** | 14 auto-loaded skills: framework best practices + domain workflows | `skills/` · `template/.claude/skills/` |
 | **Companion plugins** | 9 plugins declared for the whole team via `enabledPlugins` | `template/.claude/settings.json` |
 | **Installer** | Idempotent merge-aware `init.sh` — installs, upgrades, never clobbers | `scripts/init.sh` |
 
@@ -146,9 +146,9 @@ Hooks are the kit's enforcement layer — CLAUDE.md only reminds; hooks make rul
 - Fit scored per (agent, tier) so promotions are evaluated on fresh evidence; demotion is opt-in and requires a real escalation signal.
 - Auto-tune edits one reversible `model:` frontmatter line, dry-run by default, human-reviewed diff.
 
-### The 13 skills (details [below](#bundled-skills--companion-plugins))
+### The 14 skills (details [below](#bundled-skills--companion-plugins))
 
-`frontend-design` · `responsive-design` (+4 refs) · `next-best-practices` (+20 refs) · `playwright-best-practices` (~60 refs) · `e2e-flow` · `worktree-dev` · `roster-import` · `firestore-config-edit` · `firebase-best-practices` (+8 refs) · `payment-integration` (+6 refs) · `git-workflow` (+5 refs) · `i18n-best-practices` (+6 refs) · `conventions` — auto-loaded by Claude when the task matches their triggers.
+`frontend-design` · `responsive-design` (+4 refs) · `accessibility` (+4 refs) · `next-best-practices` (+20 refs) · `playwright-best-practices` (~60 refs) · `e2e-flow` · `worktree-dev` · `roster-import` · `firestore-config-edit` · `firebase-best-practices` (+8 refs) · `payment-integration` (+6 refs) · `git-workflow` (+5 refs) · `i18n-best-practices` (+6 refs) · `conventions` — auto-loaded by Claude when the task matches their triggers.
 
 ### The 9 companion plugins
 
@@ -391,6 +391,7 @@ The kit ships a set of skills (loaded automatically by Claude when relevant) and
 |-------|----------------|--------|
 | `frontend-design` | Distinctive, production-grade UI work — avoids generic "AI slop" aesthetics | Anthropic (see LICENSE.txt) |
 | `responsive-design` | Reusable cross-device layout correctness: mobile-first breakpoints, fluid grid/flex + container queries, responsive images & fluid type, touch targets & hover fallbacks, viewport/safe-area, horizontal-overflow fixes, verify across viewports (4 reference files) | kit |
+| `accessibility` | Reusable WCAG 2.2 AA correctness bar: semantic HTML & ARIA (name/role/value), keyboard operability & visible focus, focus management for modals/menus, live regions, color contrast & not-color-alone, zoom/reflow, target size, accessible forms & alt text, keyboard + screen-reader verification (4 reference files) | kit |
 | `next-best-practices` | Next.js App Router conventions: RSC boundaries, data patterns, metadata, error handling (+20 reference files) | Vercel-style reference |
 | `playwright-best-practices` | Full Playwright discipline: locators, flakiness, POM, CI/CD, auth, mocking (~60 reference files) | currents.dev, MIT |
 | `e2e-flow` | Running/authoring full user-journey Playwright specs (dev server, seeding, Stripe test checkout, bilingual selectors) | authored from pickleball-tour |
