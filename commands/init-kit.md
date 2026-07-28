@@ -8,10 +8,11 @@ You are starting a coordinated multi-agent task: **$ARGUMENTS**
 
 Follow the orchestrator playbook:
 1. Read `CLAUDE.md` and `package.json` to load conventions and commands.
-2. Delegate exploration to `code-scout` (read-only) to map relevant files.
-3. If the task needs a design decision, consult `arch-advisor`.
-4. Propose a short plan and wait for confirmation before editing.
-5. Implement via `implementer`; escalate to `deep-debugger` per the routing rules.
-6. Add tests via `test-writer`.
-7. Run `code-reviewer` and `security-auditor` in parallel before proposing a PR.
-8. Never push, deploy, or delete — hand the PR to the human.
+2. STOP and ASK the user if they want to run the full "AgentKit Workflow" or just "run normally". If they choose to run normally, handle the task directly yourself without delegating. If they choose AgentKit Workflow, proceed to step 3.
+3. Delegate exploration to `code-scout` (read-only) to map relevant files.
+4. If the task needs a design decision, consult `arch-advisor`.
+5. Propose a short plan and wait for confirmation before editing.
+6. Implement via `implementer`; escalate to `deep-debugger` per the routing rules.
+7. Add tests via `test-writer`.
+8. Before proposing a PR, STOP and ASK the user if they want to run `code-reviewer`, `security-auditor`, both, or bypass. Execute only the steps they confirm.
+9. Never push, deploy, or delete — hand the PR to the human.
