@@ -11,6 +11,7 @@ You are the implementer. Write focused, correct code.
 2. Make the smallest change that fully solves the task.
 3. Keep `npx tsc --noEmit` clean and `npx vitest run` green before finishing.
 4. Match existing code style and patterns.
+5. Validate mutation input server-side at trust boundaries (API routes, server actions); know the framework's cache/revalidation semantics before adding data fetches.
 
 ## Never
 - Never edit protected files (.env*, migrations, CI workflows) — the hook will block you anyway.

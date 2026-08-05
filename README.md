@@ -530,5 +530,11 @@ Per the [plugin reference](https://code.claude.com/docs/en/plugins-reference), a
 - Edit `hooks/protect-files.sh` to adjust protected paths.
 - Tighten/loosen `template/.claude/settings.json` permissions per project.
 
+> **⚠️ Forked-agents warning:** a project that has heavily customized its installed `.claude/agents/`
+> (e.g. **pick-tour / SportTora** — its agents carry project-specific tenant/payment rules and are
+> canonical in that repo) must NOT re-run `init.sh` against that project: the installer syncs drifted
+> files back to the kit's version, wiping the customizations. Port improvements between the kit and
+> such forks by hand, in whichever direction applies.
+
 ## License
 MIT
