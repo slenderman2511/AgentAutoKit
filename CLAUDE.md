@@ -54,6 +54,13 @@ Agent tiers are pinned IDs: `claude-opus-5-5`, `claude-sonnet-5-5`, `haiku` (Hai
 `effort`). When bumping a pin, also update `kit_rank_alias` in `scripts/kit-metrics-lib.sh` and the
 default prices in `scripts/kit-stats.sh`, in both surfaces.
 
+## README diagrams
+
+`docs/diagrams/` holds archify specs (`*.json`), interactive HTML and the light/dark PNGs the README
+embeds. After changing the architecture, workflow or telemetry loop, edit the spec, then run
+`node skills/archify/bin/archify.mjs deliver <type> <spec> <out.html> --quality showcase` and
+`visual-check`; keep only the 1440x900 light/dark PNGs (renamed `<name>.light|dark.png`).
+
 ## Verify before claiming done
 
 - `bash -n` on every changed `*.sh`; `jq -e .` on every changed `*.json`.

@@ -11,6 +11,7 @@ The workflow itself is ported (and generalized) from the kit's reference project
 ## Table of contents
 
 - [Product at a glance](#product-at-a-glance)
+- [The kit in three diagrams](#the-kit-in-three-diagrams)
 - [Install & use](#install--use)
 - [Full inventory: every tool & feature](#full-inventory-every-tool--feature)
 - [How it is delivered](#how-it-is-delivered)
@@ -46,6 +47,31 @@ The moving parts:
 | **Installer** | Idempotent merge-aware `init.sh` — installs, upgrades, never clobbers | `scripts/init.sh` |
 
 ---
+
+## The kit in three diagrams
+
+Drawn with the bundled `archify` skill. Each image follows your GitHub light/dark theme; the interactive versions (pan, zoom, search, light/dark, PNG/SVG export) are the `.html` files in [`docs/diagrams/`](docs/diagrams/) — download one and open it in a browser. The `.json` next to each is its source spec: edit it and re-render with `node skills/archify/bin/archify.mjs deliver <type> <spec.json> <out.html> --quality showcase`.
+
+**1 · How the kit reaches a project** — the reference project feeds the kit; the kit installs either as a template (with permissions and rules) or as a plugin; inside the project, hooks guard every edit and record telemetry.
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/diagrams/delivery.dark.png">
+  <img alt="Architecture: pick-tour ports generic parts into the AgentAutoKit repo, which installs into a project either through scripts/init.sh (template) or the plugin marketplace; the project's Claude Code session runs guardrail hooks that record events.jsonl" src="docs/diagrams/delivery.light.png">
+</picture>
+
+**2 · `/init-kit`: size, route, gate** — every task is sized S/M/L first; M and L get a plan (L also a spec reviewed by `spec-reviewer`); `implementer` escalates to `deep-debugger` after two failures; nothing reaches a PR without the review gate.
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/diagrams/workflow.dark.png">
+  <img alt="Workflow across three lanes: the main session sizes the task and plans; specialist agents scout, review the spec, implement and test; the escalation and review-gate lane holds deep-debugger and the code-reviewer and security-auditor gate before the PR to dev" src="docs/diagrams/workflow.light.png">
+</picture>
+
+**3 · Measure → score → re-tier** — hooks and the orchestrator write `events.jsonl`; `/kit-stats` turns it into a scorecard priced by tier; `/kit-tune --apply` promotes an under-fit agent one tier in its frontmatter, as a diff a human reviews.
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/diagrams/telemetry.dark.png">
+  <img alt="Data flow: SubagentStop hook, Stop hook and orchestrator write events.jsonl; /kit-stats aggregates it with pricing.json into a scorecard; /kit-tune promotes an agent tier in its frontmatter" src="docs/diagrams/telemetry.light.png">
+</picture>
 
 ## Install & use
 

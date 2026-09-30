@@ -1,0 +1,250 @@
+{
+  "schema_version": 2,
+  "diagram_type": "workflow",
+  "meta": {
+    "title": "/init-kit — size, route, gate",
+    "quality_profile": "showcase"
+  },
+  "lanes": [
+    {
+      "id": "session",
+      "label": "Main session (orchestrator)"
+    },
+    {
+      "id": "agents",
+      "label": "Specialist agents"
+    },
+    {
+      "id": "guard",
+      "label": "Escalation & review gate",
+      "variant": "exception"
+    }
+  ],
+  "phases": [
+    {
+      "id": "size",
+      "label": "Size",
+      "fromCol": 0,
+      "toCol": 1
+    },
+    {
+      "id": "plan",
+      "label": "Plan",
+      "fromCol": 2,
+      "toCol": 2
+    },
+    {
+      "id": "build",
+      "label": "Build + test",
+      "fromCol": 3,
+      "toCol": 4,
+      "variant": "emphasis"
+    },
+    {
+      "id": "ship",
+      "label": "Gate + PR",
+      "fromCol": 5,
+      "toCol": 5,
+      "variant": "security"
+    }
+  ],
+  "mainPath": [
+    "task",
+    "size",
+    "plan",
+    "impl",
+    "tests",
+    "review",
+    "pr"
+  ],
+  "nodes": [
+    {
+      "id": "task",
+      "lane": "session",
+      "col": 0,
+      "type": "external",
+      "label": "Task",
+      "sublabel": "/init-kit <task>"
+    },
+    {
+      "id": "size",
+      "lane": "session",
+      "col": 1,
+      "type": "backend",
+      "label": "Size S / M / L",
+      "sublabel": "Q1 approach · Q2 risk",
+      "width": 150
+    },
+    {
+      "id": "plan",
+      "lane": "session",
+      "col": 2,
+      "type": "backend",
+      "label": "Plan",
+      "sublabel": "checkbox plan · confirm",
+      "width": 150
+    },
+    {
+      "id": "pr",
+      "lane": "session",
+      "col": 5,
+      "type": "external",
+      "label": "PR to dev",
+      "sublabel": "human merges"
+    },
+    {
+      "id": "scout",
+      "lane": "agents",
+      "col": 1,
+      "type": "backend",
+      "label": "code-scout",
+      "sublabel": "haiku · lookups",
+      "width": 150
+    },
+    {
+      "id": "specrev",
+      "lane": "agents",
+      "col": 2,
+      "type": "security",
+      "label": "spec-reviewer",
+      "sublabel": "L tier · opus",
+      "width": 150
+    },
+    {
+      "id": "impl",
+      "lane": "agents",
+      "col": 3,
+      "type": "backend",
+      "label": "implementer",
+      "sublabel": "sonnet · high",
+      "width": 150
+    },
+    {
+      "id": "tests",
+      "lane": "agents",
+      "col": 4,
+      "type": "backend",
+      "label": "test-writer",
+      "sublabel": "sonnet · high",
+      "width": 150
+    },
+    {
+      "id": "debug",
+      "lane": "guard",
+      "col": 3,
+      "type": "security",
+      "label": "deep-debugger",
+      "sublabel": "opus · xhigh",
+      "width": 150
+    },
+    {
+      "id": "review",
+      "lane": "guard",
+      "col": 5,
+      "type": "security",
+      "label": "Review gate",
+      "sublabel": "code-reviewer ∥ auditor",
+      "width": 150
+    }
+  ],
+  "edges": [
+    {
+      "id": "task-size",
+      "from": "task",
+      "to": "size"
+    },
+    {
+      "id": "size-scout",
+      "from": "size",
+      "to": "scout",
+      "label": "lookups",
+      "variant": "dashed",
+      "role": "branch"
+    },
+    {
+      "id": "size-plan",
+      "from": "size",
+      "to": "plan",
+      "label": "M / L",
+      "variant": "emphasis"
+    },
+    {
+      "id": "plan-spec",
+      "from": "plan",
+      "to": "specrev",
+      "label": "L: spec",
+      "variant": "security",
+      "role": "branch"
+    },
+    {
+      "id": "plan-impl",
+      "from": "plan",
+      "to": "impl",
+      "label": "confirmed",
+      "variant": "emphasis"
+    },
+    {
+      "id": "impl-debug",
+      "from": "impl",
+      "to": "debug",
+      "label": "fails twice",
+      "variant": "security",
+      "role": "error"
+    },
+    {
+      "id": "impl-tests",
+      "from": "impl",
+      "to": "tests"
+    },
+    {
+      "id": "debug-tests",
+      "from": "debug",
+      "to": "tests",
+      "label": "root cause fixed",
+      "variant": "dashed",
+      "role": "branch"
+    },
+    {
+      "id": "tests-review",
+      "from": "tests",
+      "to": "review",
+      "label": "full diff",
+      "variant": "emphasis"
+    },
+    {
+      "id": "review-impl",
+      "from": "review",
+      "to": "impl",
+      "label": "findings · ≤2 rounds",
+      "variant": "dashed",
+      "role": "return"
+    },
+    {
+      "id": "review-pr",
+      "from": "review",
+      "to": "pr",
+      "label": "gate green",
+      "variant": "emphasis"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "Tiers",
+      "items": [
+        "S: ≤3 files, known approach — implement directly",
+        "M: 4–10 files — checkbox plan in docs/superpowers/plans/",
+        "L: schema, payments, auth or unknown cause — spec first"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "Gates",
+      "items": [
+        "code-reviewer on every PR; security-auditor on sensitive paths",
+        "review-gate hook reminds at gh pr create",
+        "verify hook: tsc + related tests before Stop"
+      ]
+    }
+  ]
+}
