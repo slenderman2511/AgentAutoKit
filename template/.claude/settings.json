@@ -1,14 +1,33 @@
 {
   "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "model": "claude-opus-5-5",
+  "env": {
+    "DISABLE_OMC": "1"
+  },
   "extraKnownMarketplaces": {
     "claude-code": {
-      "source": { "source": "github", "repo": "anthropics/claude-code" }
+      "source": {
+        "source": "github",
+        "repo": "anthropics/claude-code"
+      }
     },
     "superpowers-marketplace": {
-      "source": { "source": "github", "repo": "obra/superpowers-marketplace" }
+      "source": {
+        "source": "github",
+        "repo": "obra/superpowers-marketplace"
+      }
     },
     "thedotmack": {
-      "source": { "source": "github", "repo": "thedotmack/claude-mem" }
+      "source": {
+        "source": "github",
+        "repo": "thedotmack/claude-mem"
+      }
+    },
+    "ponytail": {
+      "source": {
+        "source": "github",
+        "repo": "DietrichGebert/ponytail"
+      }
     }
   },
   "enabledPlugins": {
@@ -20,7 +39,8 @@
     "context7@claude-plugins-official": true,
     "hookify@claude-code": true,
     "superpowers@superpowers-marketplace": true,
-    "claude-mem@thedotmack": true
+    "claude-mem@thedotmack": true,
+    "ponytail@ponytail": true
   },
   "statusLine": {
     "type": "command",
@@ -40,6 +60,7 @@
       "Bash(npm run build:*)",
       "Bash(npx tsc:*)",
       "Bash(npx vitest:*)",
+      "Bash(npx eslint:*)",
       "Bash(.claude/scripts/kit-stats.sh:*)",
       "Bash(.claude/scripts/kit-tune.sh:*)",
       "Bash(.claude/scripts/kit-record.sh:*)",
@@ -57,7 +78,16 @@
       "Read(./**/*.key)",
       "Read(./**/secrets/**)",
       "Bash(rm -rf:*)",
-      "Bash(git push:*)",
+      "Bash(git push origin dev)",
+      "Bash(git push origin dev *)",
+      "Bash(git push origin main)",
+      "Bash(git push origin main *)",
+      "Bash(git push -u origin dev)",
+      "Bash(git push -u origin dev *)",
+      "Bash(git push -u origin main)",
+      "Bash(git push -u origin main *)",
+      "Bash(git push --force *)",
+      "Bash(git push -f *)",
       "Bash(vercel deploy:*)",
       "Bash(vercel --prod:*)",
       "Bash(vercel promote:*)",
@@ -68,6 +98,7 @@
     ],
     "ask": [
       "Bash(git commit:*)",
+      "Bash(git push:*)",
       "Bash(gh pr create:*)",
       "Bash(gh pr merge:*)"
     ]
@@ -77,21 +108,42 @@
       {
         "matcher": "Edit|Write|MultiEdit",
         "hooks": [
-          { "type": "command", "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/protect-files.sh" }
+          {
+            "type": "command",
+            "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/protect-files.sh"
+          }
+        ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/review-gate.sh",
+            "timeout": 5
+          }
         ]
       }
     ],
     "SubagentStop": [
       {
         "hooks": [
-          { "type": "command", "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/metrics-subagent.sh", "timeout": 20 }
+          {
+            "type": "command",
+            "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/metrics-subagent.sh",
+            "timeout": 20
+          }
         ]
       }
     ],
     "Stop": [
       {
         "hooks": [
-          { "type": "command", "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/verify.sh", "timeout": 120 }
+          {
+            "type": "command",
+            "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/verify.sh",
+            "timeout": 300
+          }
         ]
       }
     ]
