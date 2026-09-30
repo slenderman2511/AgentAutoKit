@@ -3,6 +3,7 @@
   "diagram_type": "architecture",
   "meta": {
     "title": "How AgentAutoKit reaches a project",
+    "output": "docs/diagrams/delivery.html",
     "quality_profile": "showcase"
   },
   "components": [

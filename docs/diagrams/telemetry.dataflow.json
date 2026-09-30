@@ -3,6 +3,7 @@
   "diagram_type": "dataflow",
   "meta": {
     "title": "Measure → score → re-tier",
+    "output": "docs/diagrams/telemetry.html",
     "quality_profile": "showcase",
     "viewBox": [
       1080,

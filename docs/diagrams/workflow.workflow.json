@@ -3,6 +3,7 @@
   "diagram_type": "workflow",
   "meta": {
     "title": "/init-kit — size, route, gate",
+    "output": "docs/diagrams/workflow.html",
     "quality_profile": "showcase"
   },
   "lanes": [
