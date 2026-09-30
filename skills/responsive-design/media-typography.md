@@ -21,7 +21,7 @@ img, picture, video, svg { max-width: 100%; height: auto; }
   width="1600" height="900" alt="…" loading="lazy" />
 ```
 
-- **Next.js**: use `next/image` — it does `srcset`, lazy-loading, and sizing for you. Always pass `sizes` for `fill`/responsive images, and give real `width`/`height` (or `aspect-ratio`) so space is reserved. See `next-best-practices`.
+- **Next.js**: use `next/image` — it does `srcset`, lazy-loading, and sizing for you. Always pass `sizes` for `fill`/responsive images, and give real `width`/`height` (or `aspect-ratio`) so space is reserved. See the Next.js docs bundled with the installed version (`node_modules/next/dist/docs/`).
 - **Always set `width`/`height` or `aspect-ratio`** to reserve space and prevent layout shift (CLS) as images load.
 - `object-fit: cover` (with a fixed aspect box) for art-directed crops; `<picture>` with different `<source>` when the *crop itself* should change between mobile and desktop.
 - `loading="lazy"` for below-the-fold images; keep the hero eager.

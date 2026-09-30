@@ -37,7 +37,8 @@ production and is where process improvements are proven first. When evolving the
 - **Third-party skill:** vendor unmodified, only if the upstream repo is licensed (check
   `gh api repos/<owner>/<repo>/license`). Add the upstream `LICENSE` text and a `SOURCE.md`
   (upstream repo, license, date). Never vendor an unlicensed repo — point to its install command
-  in the template `CLAUDE.md` instead (e.g. `vercel-labs/next-skills` → moved to `vercel/next.js`).
+  in the template `CLAUDE.md` instead (e.g. `vercel-labs/next-skills` → moved to `vercel/next.js`;
+  `next-best-practices` was removed from the kit for this reason).
 - **pick-tour workflow skill** (context-checkpoint, ui-*, github-issue-*): generalize — project
   facts come from the template `CLAUDE.md` sections "Design system", "Source of truth",
   "Issue tracking", "Git workflow".

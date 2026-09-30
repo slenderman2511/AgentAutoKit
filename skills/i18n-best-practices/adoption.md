@@ -14,7 +14,7 @@ Raise it as a short recommendation with the cost framed honestly: adopting early
 
 ## Decide: which library
 
-Match the app's rendering model (confirm with `next-best-practices`):
+Match the app's rendering model (confirm against the Next.js docs bundled with the installed version (`node_modules/next/dist/docs/`)):
 
 - **Next.js App Router (RSC)** → **`next-intl`** (recommended). Server-first, works cleanly across the server/client boundary, handles locale routing/middleware and formatting.
 - **Next.js Pages Router / plain React SPA** → **`react-i18next`** (mature, client-oriented).

@@ -41,7 +41,7 @@ The moving parts:
 | **Telemetry & tuning** | Per-model speed/cost + fit scoring that feeds routing back into itself | `scripts/` + `SubagentStop` hook |
 | **Status line** | Live view of which agents are running (agent-panel rows + bottom bar) | `scripts/*statusline.sh` + `subagentStatusLine`/`statusLine` |
 | **Commands** | `/init-kit` (entry), `/kit-stats` (scorecard), `/kit-tune` (re-allocate) | `commands/` · `template/.claude/commands/` |
-| **Skills** | 31 auto-loaded skills: workflow skills from the reference project, framework best practices, domain workflows | `skills/` · `template/.claude/skills/` |
+| **Skills** | 30 auto-loaded skills: workflow skills from the reference project, framework best practices, domain workflows | `skills/` · `template/.claude/skills/` |
 | **Companion plugins** | 10 plugins declared for the whole team via `enabledPlugins` | `template/.claude/settings.json` |
 | **Installer** | Idempotent merge-aware `init.sh` — installs, upgrades, never clobbers | `scripts/init.sh` |
 
@@ -160,10 +160,10 @@ Hooks are the kit's enforcement layer — CLAUDE.md only reminds; hooks make rul
 - Fit scored per (agent, tier) so promotions are evaluated on fresh evidence; demotion is opt-in and requires a real escalation signal.
 - Auto-tune edits one reversible `model:` frontmatter line, dry-run by default, human-reviewed diff.
 
-### The 31 skills (details [below](#bundled-skills--companion-plugins))
+### The 30 skills (details [below](#bundled-skills--companion-plugins))
 
 - **Workflow (9):** `worktree-dev` · `git-workflow` · `context-checkpoint` · `ui-prototype` · `ui-verify` · `github-issue-flow` · `add-bug-to-github` · `fix-from-github` · `conventions`
-- **Best practices (19):** `frontend-design` · `hallmark` · `responsive-design` · `accessibility` · `seo` · `next-best-practices` · `react-best-practices` · `composition-patterns` · `typescript-advanced-types` · `tailwind-css-patterns` · `nodejs-best-practices` · `nodejs-backend-patterns` · `playwright-best-practices` · `firebase-best-practices` · `payment-integration` · `stripe-best-practices` · `upgrade-stripe` · `i18n-best-practices` · `archify`
+- **Best practices (18):** `frontend-design` · `hallmark` · `responsive-design` · `accessibility` · `seo` · `react-best-practices` · `composition-patterns` · `typescript-advanced-types` · `tailwind-css-patterns` · `nodejs-best-practices` · `nodejs-backend-patterns` · `playwright-best-practices` · `firebase-best-practices` · `payment-integration` · `stripe-best-practices` · `upgrade-stripe` · `i18n-best-practices` · `archify`
 - **Domain (3, tournament apps on Firebase):** `roster-import` · `firestore-config-edit` · `e2e-flow`
 
 All auto-loaded by Claude when the task matches their triggers.
@@ -481,7 +481,6 @@ The kit ships a set of skills (loaded automatically by Claude when relevant) and
 | `responsive-design` | Cross-device layout correctness: breakpoints, fluid layout, responsive media, touch targets, overflow (4 reference files) | kit |
 | `accessibility` | WCAG 2.2 AA bar: semantics & ARIA, keyboard & focus, contrast, zoom/reflow, forms, verification (4 reference files) | kit |
 | `seo` | Meta tags, structured data, sitemaps, search visibility | addyosmani/web-quality-skills, MIT |
-| `next-best-practices` | Next.js App Router conventions (+20 reference files). On Next.js 16.3+ prefer the docs bundled with Next itself | vercel-labs/next-skills (deprecated upstream) |
 | `react-best-practices` | React/Next.js performance rules from Vercel Engineering (~70 rules) | vercel-labs/agent-skills, MIT |
 | `composition-patterns` | React composition: compound components, avoiding boolean-prop sprawl, React 19 APIs | vercel-labs/agent-skills, MIT |
 | `typescript-advanced-types` | Generics, conditional/mapped/template-literal types, utility types | wshobson/agents, MIT |
@@ -496,7 +495,7 @@ The kit ships a set of skills (loaded automatically by Claude when relevant) and
 | `i18n-best-practices` | Multi-language (EN/VI +) bar: adoption, hardcoded strings, locale parity, ICU, locale formatting (6 reference files) | kit |
 | `archify` | System description or Mermaid → validated standalone-HTML diagrams (architecture, sequence, data-flow, state) | tt-a1i/archify, MIT |
 
-Not bundled: `next-cache-components` and `next-upgrade` — their upstream (`vercel-labs/next-skills`) has no license to redistribute and has moved. Install Cache Components workflow skills with `npx skills add vercel/next.js`; upgrade with `npx @next/codemod@latest upgrade`.
+Not bundled: `next-best-practices`, `next-cache-components` and `next-upgrade` — their upstream (`vercel-labs/next-skills`) has no license to redistribute and has retired them. From Next.js 16.3 the framework ships its own agent docs (`node_modules/next/dist/docs/` plus the `AGENTS.md`/`CLAUDE.md` rules that `next dev` generates). Projects upgraded from an older kit keep their copy of `next-best-practices` (`init.sh` never deletes files) — remove it by hand on Next.js 16.3+. Install Cache Components workflow skills with `npx skills add vercel/next.js`; upgrade with `npx @next/codemod@latest upgrade`.
 
 **Domain skills** — from the reference project, refreshed verbatim; they are specific to tournament apps on Firebase, so delete them where they don't apply.
 

@@ -8,7 +8,7 @@ user-invocable: false
 
 Reference discipline for **making UI render correctly across screen sizes** — phone, tablet, desktop, and the awkward sizes between. `frontend-design` owns the *aesthetic* (typography, color, motion, boldness); this skill owns *does it hold up at every width*. Apply these when writing or reviewing any layout — treat findings as things to *fix*, not just flag.
 
-This skill is framework-level and reusable. It states *what responsive-correct looks like* regardless of Tailwind, CSS Modules, or plain CSS. Neighbors: `frontend-design` (visual direction — pair the two), `next-best-practices` (image/font optimization, `next/image`), `i18n-best-practices` (translated text expands — Vietnamese/German strings run longer than English and must not break the layout), and `e2e-flow`/`playwright-best-practices` (driving real viewports to verify).
+This skill is framework-level and reusable. It states *what responsive-correct looks like* regardless of Tailwind, CSS Modules, or plain CSS. Neighbors: `frontend-design` (visual direction — pair the two), the Next.js docs bundled with the installed version (`node_modules/next/dist/docs/`) for image/font optimization and `next/image`, `i18n-best-practices` (translated text expands — Vietnamese/German strings run longer than English and must not break the layout), and `e2e-flow`/`playwright-best-practices` (driving real viewports to verify).
 
 ## Golden rules (never violate)
 
