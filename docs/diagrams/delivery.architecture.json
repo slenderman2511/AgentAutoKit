@@ -1,0 +1,226 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "How AgentAutoKit reaches a project",
+    "quality_profile": "showcase"
+  },
+  "components": [
+    {
+      "id": "pick",
+      "type": "external",
+      "label": "pick-tour",
+      "sublabel": "reference project",
+      "pos": [
+        40,
+        300
+      ],
+      "size": [
+        130,
+        60
+      ]
+    },
+    {
+      "id": "kit",
+      "type": "backend",
+      "label": "AgentAutoKit repo",
+      "sublabel": "agents · rules · hooks · skills",
+      "pos": [
+        280,
+        300
+      ],
+      "size": [
+        170,
+        64
+      ]
+    },
+    {
+      "id": "init",
+      "type": "backend",
+      "label": "scripts/init.sh",
+      "sublabel": "merge-aware install",
+      "pos": [
+        550,
+        300
+      ],
+      "size": [
+        150,
+        60
+      ]
+    },
+    {
+      "id": "market",
+      "type": "cloud",
+      "label": "Plugin marketplace",
+      "sublabel": "claude plugin install",
+      "pos": [
+        550,
+        140
+      ],
+      "size": [
+        150,
+        60
+      ]
+    },
+    {
+      "id": "proj",
+      "type": "database",
+      "label": "Project .claude/",
+      "sublabel": "CLAUDE.md · rules · settings",
+      "pos": [
+        770,
+        300
+      ],
+      "size": [
+        170,
+        64
+      ]
+    },
+    {
+      "id": "session",
+      "type": "frontend",
+      "label": "Claude Code session",
+      "sublabel": "/init-kit · 10 agents",
+      "pos": [
+        1010,
+        300
+      ],
+      "size": [
+        170,
+        64
+      ]
+    },
+    {
+      "id": "hooks",
+      "type": "security",
+      "label": "Guardrail hooks",
+      "sublabel": "protect · review-gate · verify",
+      "pos": [
+        1010,
+        500
+      ],
+      "size": [
+        170,
+        64
+      ]
+    },
+    {
+      "id": "metrics",
+      "type": "database",
+      "label": "events.jsonl",
+      "sublabel": "per-agent speed · cost",
+      "pos": [
+        770,
+        500
+      ],
+      "size": [
+        170,
+        60
+      ]
+    }
+  ],
+  "boundaries": [
+    {
+      "kind": "region",
+      "label": "Your project",
+      "wraps": [
+        "proj",
+        "session",
+        "hooks",
+        "metrics"
+      ]
+    }
+  ],
+  "connections": [
+    {
+      "id": "port",
+      "from": "pick",
+      "to": "kit",
+      "label": "port generic parts",
+      "variant": "dashed"
+    },
+    {
+      "id": "template",
+      "from": "kit",
+      "to": "init",
+      "label": "template/.claude"
+    },
+    {
+      "id": "install",
+      "from": "init",
+      "to": "proj",
+      "label": "merge",
+      "variant": "emphasis"
+    },
+    {
+      "id": "plugin",
+      "from": "kit",
+      "to": "market",
+      "label": "plugin surface",
+      "fromSide": "top",
+      "toSide": "left"
+    },
+    {
+      "id": "load-plugin",
+      "from": "market",
+      "to": "session",
+      "label": "agents · hooks · skills",
+      "fromSide": "right",
+      "toSide": "top"
+    },
+    {
+      "id": "load-project",
+      "from": "proj",
+      "to": "session",
+      "label": "loads"
+    },
+    {
+      "id": "guard",
+      "from": "session",
+      "to": "hooks",
+      "label": "every edit / stop",
+      "variant": "security",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "labelAt": [
+        1095,
+        432
+      ]
+    },
+    {
+      "id": "record",
+      "from": "hooks",
+      "to": "metrics",
+      "label": "records"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "Template (recommended)",
+      "items": [
+        "init.sh merges template/.claude into the project",
+        "Carries permissions, rules/ and workflows/",
+        "settings.json is deep-merged, never overwritten"
+      ]
+    },
+    {
+      "dot": "violet",
+      "title": "Plugin",
+      "items": [
+        "claude plugin install agent-auto-kit",
+        "Ships agents, commands, hooks and skills",
+        "Cannot ship permission rules or rules/"
+      ]
+    },
+    {
+      "dot": "amber",
+      "title": "Reference project",
+      "items": [
+        "pick-tour runs the workflow in production",
+        "Generic parts are ported into the kit by hand",
+        "Never run init.sh against it"
+      ]
+    }
+  ]
+}

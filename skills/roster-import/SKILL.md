@@ -1,78 +1,95 @@
 ---
 name: roster-import
-description: Use when importing an external player roster (XLSX spreadsheets) into a tournament event's Firestore entries — e.g. "import the VPC roster", "load these registration spreadsheets", "bulk-add players from Excel" — or when assessing duplicates from, verifying, or rolling back such an import. Covers the assess → dry-run → APPLY=1 → verify → rollback pipeline in scripts/_import_vpc_roster.ts and its companion scripts.
+description: Import a roster from Excel (.xlsx) into Firestore as event entries for this pickleball tournament app. Use when the user hands over a spreadsheet of athletes/delegations and asks to seed entries, or references files under docs/tenants/**. Encodes the 6 data-seeding rules, the exact Entry/Participant shapes, doubles pairing, dry-run counting, and the mandatory confirm-before-write gate.
 ---
-# Roster Import (XLSX → Firestore entries)
 
-Import spreadsheet rosters into `events/{eventId}/entries` + `events/{eventId}/athletes`, minting provisional users only when no existing identity matches. Reference implementation: the VPC Future Stars import (`vpc-future-stars-2026`, tenant `vpc`).
+# Roster import → Firestore entries
 
-## Hard safety rules (non-negotiable)
+Turns a `.xlsx` roster into `events/{eventId}/entries/*` documents. There is **no shared
+xlsx helper** in this repo — each import is its own script under `scripts/`, all following
+the same shape. This skill is that shape. Two good references to copy from:
+`scripts/one-off/seed-hpf-members.mjs` (batched, env-parametric) and `scripts/one-off/_import_vpc_roster.ts`
+(builds real doubles/singles entries with members).
 
-- **Every Firestore write from Claude Code requires explicit user confirmation first** (`.claude/rules/firebase-data-safety.md`). State collection, operation, and doc count; show the exact command; wait for approval. Bulk ops (>10 docs) must show a dry-run count first.
-- **Never run APPLY against prod without a clean dry-run and a post-import verify.** All four scripts load `.env.production` — treat every run as production.
-- **Always keep a rollback path.** Every import write is tagged so `_rollback_import.ts` can find it: entries get `createdVia: 'roster_import'` + `createdBy: 'roster-import'` + `importSource`, athlete docs get `createdVia: 'roster_import'`, minted users get `provisionalCreatedBy: 'roster-import'`. Never strip these tags; a new import for a different event needs its own distinct tag.
-- **Tenant isolation** (`.claude/rules/multi-tenant.md`): `events` and everything under `events/{eventId}/` is tenant-scoped. Scripts hardcode `process.env.TENANT_ID = 'vpc'` and write `tenantId: 'vpc'` on every entry. A new import must set both. `users` is the global collection — extra caution; deletes there are rollback-only.
-- **Identity = normalized name + birth year. Never match by phone. Never write `cccd`.** Verify confirms cccd count is 0.
-- **DRY-RUN is the default.** Writes/deletes happen only when `APPLY=1` is set explicitly.
+## Hard rules (from CLAUDE.md "Data Seeding Rules" — never skip)
 
-## Pipeline (in order)
+1. **`divisionId` MUST be `'default'`**, never the categoryId. The brackets page keys on
+   `categoryId____divisionId`; `thcs-ms____thcs-ms` never matches `thcs-ms____default`.
+2. **No `undefined` in any document** — Firestore rejects it. Use spread conditionals:
+   `...(phone ? { phoneNumber: phone } : {})`, never `phoneNumber: phone || undefined`.
+3. **Trim every env var**: `const TENANT_ID = (process.env.TENANT_ID || '').trim();`
+   (Vercel/CI values carry trailing newlines → silent query misses.)
+4. **Doubles pair every 2 athletes.** Odd count → last entry has 1 member; **flag it for
+   review**, do not silently drop.
+5. **Every write is tenant-scoped and confirmed by the user first** — see the gate below.
+6. New docs include the authoritative `tenantId` (from `getTenantId()`), never from input.
 
-### 1. Assess duplicates (read-only)
+## Exact document shapes (verbatim from `src/lib/firebase/eventService.ts`)
 
-```bash
-npx tsx scripts/_assess_import_dups.ts
+**Entry** (`eventService.ts:304`) — required fields to populate on import:
+
+```ts
+{
+  name: string,              // team/pair display name
+  eventId: string,
+  categoryId: string,        // e.g. 'amateur_doubles_mens'
+  divisionId: 'default',     // ALWAYS 'default' unless the category truly has >1 division
+  captainUid: string,        // uid of first member (or a provisional id)
+  members: Participant[],
+  status: 'confirmed',       // imported rosters are confirmed
+  mode: 'solo' | 'pair' | 'team',   // singles → 'solo', doubles/mixed → 'pair'
+  createdAt: string,         // new Date().toISOString()
+  ...(delegationId ? { delegationId } : {}),   // only for delegation events
+}
 ```
 
-Reports which `roster_import` athletes duplicate a pre-existing (non-import) athlete by name+year in the same event. Run it before an import (baseline) and after (should add no new dups). No flags; no writes.
+**Participant / member** (`eventService.ts:229`):
 
-### 2. Dry-run the import
-
-```bash
-npx tsx scripts/_import_vpc_roster.ts          # dry-run (default)
+```ts
+{
+  athleteId: string,         // resolved user id, or a provisional/walk-in id
+  fullName: string,
+  gender: Gender,            // canonical: 'mens'|'womens'|'boys'|'girls' etc — see category-naming rule
+  status: 'confirmed',
+  rating: 0,                 // 0 for imported data with no known rating
+  identityType: 'walkin_raw',   // for raw imported athletes with no linked account
+}
 ```
 
-Prints: distinct persons (split into REUSE-existing vs new), new entries vs skipped (already present in category+division), and flagged persons (`NO-DOB`, `NO-GENDER`, `[approx]`). Review flags with the organiser before applying — the script has a `GENDER_OVERRIDE` map for organiser-confirmed ambiguous cases.
+`status` and `identityType` are unions — the imported-roster values are `'confirmed'` and
+`'walkin_raw'`. Full union lists live at those line refs; read them before using any other value.
 
-### 3. Apply (only after user confirms)
+## Reading the sheet
 
-```bash
-APPLY=1 npx tsx scripts/_import_vpc_roster.ts
+```js
+import XLSX from 'xlsx';                       // or: const XLSX = require('xlsx')
+const wb = XLSX.readFile(EXCEL_PATH);
+const ws = wb.Sheets[wb.SheetNames[0]];
+const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' }); // array-of-arrays
+// row[0] is usually the header; map columns explicitly, do not trust order blindly.
 ```
 
-### 4. Verify
+Define inline `str()` / `num()` coercers per script (as `seed-hpf-members.mjs:64` does) —
+sheet cells are often numbers where you expect strings.
 
-```bash
-npx tsx scripts/_verify_import.ts
-```
+## Workflow (MUST follow — this is a Firestore write)
 
-Checks all `roster_import` entries are `status='confirmed'`, `paymentStatus='UNPAID'`, `ratingSystem='PVNA'`, counts new athlete docs, and confirms zero members carry `cccd`. Then re-run step 1 to confirm the import created no duplicate identities.
+1. **Parse & map** columns → athletes. Log how many rows, how many athletes, how many
+   have missing gender/name.
+2. **Pair for doubles** (every 2). Report the odd-one-out count explicitly.
+3. **Validate** against the 6 rules — run `/seed-check` on the script before executing.
+4. **Dry-run count**: print exactly how many entry docs and member docs will be written,
+   to which `events/{eventId}/entries` path, for which tenant. Write nothing yet.
+5. **State it and wait for explicit user confirmation** (per `.claude/rules/firebase-data-safety.md`).
+   Template:
+   > I will write 179 entries (358 members) to `events/bach-dang-open-2026/entries`
+   > for tenant `hpf-haiphong`, all status=confirmed, divisionId=default. 3 odd athletes
+   > flagged (1-member entries). Command: `TENANT_ID=hpf-haiphong node scripts/seed-<x>.mjs`. Proceed?
+6. **Only after "yes"**, run with `TENANT_ID=<tenant> node scripts/…`. Batch writes at
+   ≤400 docs per `db.batch()` (Firestore limit is 500; leave headroom).
 
-### 5. Rollback (if the import is bad)
+## Anti-patterns that have bitten this repo
 
-```bash
-npx tsx scripts/_rollback_import.ts            # dry-run: lists counts + sample entries
-APPLY=1 npx tsx scripts/_rollback_import.ts    # deletes, batched 400/commit
-```
-
-Deletes, in order: entries where `createdVia == 'roster_import'`, athlete docs whose id is a minted uid, then `users` where `provisionalCreatedBy == 'roster-import'`. Reused identities are untouched (only minted ones carry the tag). Confirm the dry-run sample with the user before APPLY — user deletion is irreversible.
-
-## What the import actually does
-
-- **Env/args:** no CLI args. `APPLY=1` env var is the only switch. Loads `.env.production` via dotenv; sets `TENANT_ID`. Event id and XLSX directory are hardcoded constants (`EVENT_ID`, `DIR`) — edit them for a new import.
-- **Parsing:** reads XLSX files with the `xlsx` package; per-file column layouts are bespoke. Names are normalized (`ncol`: strip Vietnamese diacritics, lowercase, collapse). Category strings parse to `ms-junior` / `ws-junior` / `md-junior` / `wd-junior` / `xd-junior` + division `u10`–`u18`, mode `solo` | `pair`.
-- **DOB:** parses Excel serials and `dd/mm/yyyy`; year-only DOB becomes `YYYY-01-01` with `birthdayApprox: true`.
-- **Skip logic:** an entry is skipped if all its members already exist in that category+division (name + compatible year). Cancelled/rejected entries don't count as existing.
-- **Identity reuse:** before minting, match against current event entries and athlete docs by name + compatible year. Reused members get `identityType: 'admin_manual_link'`; new ones get `walkin_raw`.
-- **Minting:** `createProvisionalUser({ adminUid: 'roster-import', ... })` (from `src/lib/firebase/admin/identityMatching.ts`) writes a `users` doc with `provisional: true`, `authBacked: false`; the script then writes the athlete doc directly (`entranceFeeStatus: 'Not_Required'`, `onboardingCompleted: true`, `nationality: 'VN'`).
-- **Entry shape:** `name` ("A / B"), `categoryId`, `divisionId`, `mode`, `captainUid` (first member), `globalUids`, `members[]` (with `athleteId`, `legacyUid`, `isCaptain`, `rating: 0`), `status: 'confirmed'`, `paymentStatus: 'UNPAID'`, `ratingSystem: 'PVNA'`, `isWalkIn: true`, `tenantId`.
-
-## Data-model notes
-
-- Roster-visible entry statuses are `confirmed` and `pending_verification` (`src/lib/delegationRoster.ts`); imported entries are `confirmed`, so they appear on public rosters immediately.
-- Members are keyed by `athleteId || uid`; `src/lib/teamRoster.ts` rating-cap checks read `duprRating`/`rating` — imported members have `rating: 0` (unrated, flagged for admin assessment, non-blocking).
-
-## Adapting to a new roster
-
-1. Copy `_import_vpc_roster.ts`; change `EVENT_ID`, `DIR`, `TENANT_ID`/`tenantId`, and the per-file column parsers.
-2. Use a fresh `createdVia`/`createdBy` tag pair and update the assess/verify/rollback scripts to match it.
-3. Keep the same order: assess → dry-run → user confirmation → APPLY → verify → assess again.
+- `divisionId: categoryId` → bracket never renders the entries (rule 1).
+- Forgetting `TENANT_ID` prefix → script errors before init, or worse writes to wrong tenant.
+- Writing before the dry-run/confirm → violates firebase-data-safety cardinal rule.

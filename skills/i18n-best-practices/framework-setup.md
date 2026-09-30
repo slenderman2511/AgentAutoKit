@@ -13,7 +13,7 @@ This is the #1 source of i18n bugs in App Router. Server components and client c
 - **Never pass the `t` function from a server component to a client component as a prop** — it isn't serializable and will error or silently break. Instead, either translate on the server and pass the resulting **strings** down, or let the client component call its own hook.
 - Keep as much translation on the server as possible (smaller client bundle); reach for the client hook only where the component is already `'use client'` for interactivity.
 
-See `next-best-practices` for the general RSC/serialization rules.
+See the Next.js docs bundled with the installed version (`node_modules/next/dist/docs/`) for the general RSC/serialization rules.
 
 ## next-intl (recommended for App Router)
 

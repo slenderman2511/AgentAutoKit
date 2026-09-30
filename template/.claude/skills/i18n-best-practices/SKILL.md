@@ -8,7 +8,7 @@ user-invocable: false
 
 Reference discipline for **correcting and hardening** multi-language features. Every project here ships at least English + Vietnamese and may add more locales, so *any* user-facing string is an i18n surface. Apply these rules when writing or reviewing any feature that renders text — treat findings as things to *fix*, not just flag.
 
-This skill is framework-level and reusable. It owns *what correct i18n looks like* — the rules below hold whether the project uses `next-intl`, `react-i18next`, or a plain message catalog. When a repo ships a project-specific skill that says *where locale files live* and *how they're loaded in this repo*, that skill owns the mechanics; this skill owns the correctness bar. Neighbors: `next-best-practices` (RSC server/client boundary — critical for where translations can run), `frontend-design` (RTL/layout when a new locale needs it), and `e2e-flow` (bilingual selectors in tests).
+This skill is framework-level and reusable. It owns *what correct i18n looks like* — the rules below hold whether the project uses `next-intl`, `react-i18next`, or a plain message catalog. When a repo ships a project-specific skill that says *where locale files live* and *how they're loaded in this repo*, that skill owns the mechanics; this skill owns the correctness bar. Neighbors: the Next.js docs bundled with the installed version (`node_modules/next/dist/docs/`) (RSC server/client boundary — critical for where translations can run), `frontend-design` (RTL/layout when a new locale needs it), and `e2e-flow` (bilingual selectors in tests).
 
 ## Golden rules (never violate)
 

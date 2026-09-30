@@ -26,12 +26,13 @@ kit_model_rank() {
   esac
 }
 
-# Canonical alias for a tier rank (used when rewriting frontmatter).
+# Canonical model for a tier rank (used when rewriting frontmatter).
+# sonnet/opus are pinned model IDs so a promotion keeps the kit's pinning policy.
 kit_rank_alias() {
   case "$1" in
     1) echo haiku ;;
-    2) echo sonnet ;;
-    3) echo opus ;;
+    2) echo claude-sonnet-5-5 ;;
+    3) echo claude-opus-5-5 ;;
     *) echo "" ;;
   esac
 }

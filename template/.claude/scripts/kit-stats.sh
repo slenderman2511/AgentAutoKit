@@ -20,11 +20,13 @@ fi
 #   {"haiku":{"in":1,"out":5,"cache_read":0.1,"cache_write":1.25}, ...}
 # cache_read / cache_write default to 0.1x / 1.25x of "in" when omitted, so an
 # older pricing.json without cache rates keeps working.
+# Defaults match the pinned models: Haiku 4.5, Sonnet 5.5, Opus 5.5 (Opus 5.5
+# cache reads are 0.05x of "in", not the usual 0.1x).
 PRICING="$MDIR/pricing.json"
 DEFAULT_PRICING='{
-  "haiku":  {"in": 1,  "out": 5,  "cache_read": 0.1, "cache_write": 1.25},
-  "sonnet": {"in": 3,  "out": 15, "cache_read": 0.3, "cache_write": 3.75},
-  "opus":   {"in": 15, "out": 75, "cache_read": 1.5, "cache_write": 18.75}
+  "haiku":  {"in": 1, "out": 5,  "cache_read": 0.1, "cache_write": 1.25},
+  "sonnet": {"in": 2, "out": 10, "cache_read": 0.2, "cache_write": 2.5},
+  "opus":   {"in": 4, "out": 20, "cache_read": 0.2, "cache_write": 5}
 }'
 RATES=$([ -f "$PRICING" ] && cat "$PRICING" || echo "$DEFAULT_PRICING")
 
@@ -62,15 +64,20 @@ JSON=$(jq -c -s --argjson rates "$RATES" '
     ),
 
     agents: (
-      ([ .[] | select(.kind=="route") ]) as $routes
+      # A run is either a route logged by the orchestrator (older data) or a
+      # subagent record the SubagentStop hook tagged with its agent_type.
+      # Models are normalized to a tier so pinned IDs (claude-sonnet-5-5) and
+      # aliases (sonnet) score in the same bucket.
+      ([ .[] | select(.kind=="route" or (.kind=="subagent" and (.agent // null) != null))
+           | .model = ((.model // "unknown") | tier) ]) as $routes
       # Escalations recorded without a model (older data) inherit the model of
       # the latest earlier route for the same agent in the same session.
       | ([ .[] | select(.kind=="escalation")
            | . as $e
-           | .model = (.model // (
+           | .model = ((.model // (
                [ $routes[] | select(.agent==$e.from and .session==$e.session and .ts <= $e.ts) ]
                | sort_by(.ts) | last | .model // "unknown"
-             ))
+             )) | tier)
          ]) as $esc
       | ($routes | group_by([.agent, (.model // "unknown")])) as $groups
       | $groups | map(
@@ -140,7 +147,7 @@ fi
     echo "$ROUTE_WARN"
     echo
   fi
-  echo "> Prices are placeholders in \`.claude/metrics/pricing.json\` — set your real per-model rates."
+  echo "> Costs use list prices for Haiku 4.5 / Sonnet 5.5 / Opus 5.5 by tier — override in \`.claude/metrics/pricing.json\`."
 } > "$MDIR/scorecard.md"
 
 cat "$MDIR/scorecard.md"

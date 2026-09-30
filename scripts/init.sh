@@ -107,6 +107,7 @@ if [ "$DRY" -eq 0 ]; then
   touch "$GI"
   grep -q ".claude/settings.local.json" "$GI" || echo ".claude/settings.local.json" >> "$GI"
   grep -q ".claude/metrics/" "$GI"            || echo ".claude/metrics/" >> "$GI"
+  grep -q ".claude/worktrees/" "$GI"          || echo ".claude/worktrees/" >> "$GI"
   # Stamp the installed kit version for future upgrades.
   [ -n "$KIT_VERSION" ] && echo "$KIT_VERSION" > "$DEST/.agentautokit-version"
 fi

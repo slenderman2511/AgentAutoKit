@@ -1,0 +1,192 @@
+{
+  "schema_version": 1,
+  "diagram_type": "dataflow",
+  "meta": {
+    "title": "Measure → score → re-tier",
+    "quality_profile": "showcase",
+    "viewBox": [
+      1080,
+      560
+    ]
+  },
+  "stages": [
+    {
+      "label": "Sources"
+    },
+    {
+      "label": "Event log"
+    },
+    {
+      "label": "Scorecard"
+    },
+    {
+      "label": "Auto-tune"
+    },
+    {
+      "label": "Routing"
+    }
+  ],
+  "nodes": [
+    {
+      "id": "substop",
+      "type": "security",
+      "label": "SubagentStop hook",
+      "sublabel": "metrics-subagent.sh",
+      "stage": 0,
+      "row": 0
+    },
+    {
+      "id": "verify",
+      "type": "security",
+      "label": "Stop hook",
+      "sublabel": "verify.sh",
+      "stage": 0,
+      "row": 1
+    },
+    {
+      "id": "orch",
+      "type": "backend",
+      "label": "Orchestrator",
+      "sublabel": "kit-record.sh",
+      "stage": 0,
+      "row": 2
+    },
+    {
+      "id": "events",
+      "type": "database",
+      "label": "events.jsonl",
+      "sublabel": ".claude/metrics/",
+      "stage": 1,
+      "row": 1
+    },
+    {
+      "id": "pricing",
+      "type": "database",
+      "label": "pricing.json",
+      "sublabel": "list prices by tier",
+      "stage": 2,
+      "row": 0
+    },
+    {
+      "id": "stats",
+      "type": "backend",
+      "label": "/kit-stats",
+      "sublabel": "scorecard.json · .md",
+      "stage": 2,
+      "row": 1
+    },
+    {
+      "id": "tune",
+      "type": "backend",
+      "label": "/kit-tune --apply",
+      "sublabel": "≥ min_samples runs",
+      "stage": 3,
+      "row": 1
+    },
+    {
+      "id": "agents",
+      "type": "frontend",
+      "label": "Agent frontmatter",
+      "sublabel": "model: pinned ID",
+      "stage": 4,
+      "row": 1
+    }
+  ],
+  "flows": [
+    {
+      "from": "substop",
+      "to": "events",
+      "label": "agent · model · tokens",
+      "classification": "measured",
+      "variant": "emphasis",
+      "fromSide": "right",
+      "toSide": "top",
+      "via": [
+        [
+          315,
+          157
+        ]
+      ]
+    },
+    {
+      "from": "verify",
+      "to": "events",
+      "label": "pass / fail + tail",
+      "classification": "measured",
+      "variant": "default"
+    },
+    {
+      "from": "orch",
+      "to": "events",
+      "label": "escalation · review rounds",
+      "classification": "proxy",
+      "variant": "dashed",
+      "fromSide": "right",
+      "toSide": "bottom",
+      "via": [
+        [
+          315,
+          385
+        ]
+      ],
+      "labelSegment": 0
+    },
+    {
+      "from": "events",
+      "to": "stats",
+      "label": "aggregate",
+      "classification": "per model · per tier",
+      "variant": "emphasis",
+      "labelDy": 53
+    },
+    {
+      "from": "pricing",
+      "to": "stats",
+      "label": "USD per MTok",
+      "classification": "cost estimate",
+      "variant": "dashed",
+      "labelDy": 24
+    },
+    {
+      "from": "stats",
+      "to": "tune",
+      "label": "fit per agent + tier",
+      "classification": "1 − escalation rate",
+      "variant": "emphasis",
+      "labelDy": 53
+    },
+    {
+      "from": "tune",
+      "to": "agents",
+      "label": "promote one tier",
+      "classification": "reviewed diff",
+      "variant": "security"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "emerald",
+      "title": "Measured",
+      "items": [
+        "Speed and tokens from each subagent's own transcript",
+        "Verify pass rate, with the failing step and output tail"
+      ]
+    },
+    {
+      "dot": "amber",
+      "title": "Proxy",
+      "items": [
+        "fit = 1 − escalation rate, per (agent, tier)",
+        "Only implementer has an escalation path today"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "Guarded",
+      "items": [
+        "Promotion needs min_samples runs on the current tier",
+        "Dry-run by default; a human reviews the frontmatter diff"
+      ]
+    }
+  ]
+}

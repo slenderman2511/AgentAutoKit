@@ -5,8 +5,16 @@
 set -o pipefail
 INPUT=$(cat)
 
-TRANSCRIPT=$(echo "$INPUT" | jq -r '.transcript_path // empty')
+# Current Claude Code writes each subagent to its own transcript
+# (<session>/subagents/agent-<id>.jsonl) and passes it as agent_transcript_path.
+# Older versions kept sidechains inline in the main transcript_path.
+TRANSCRIPT=$(echo "$INPUT" | jq -r '.agent_transcript_path // .transcript_path // empty')
 SESSION=$(echo "$INPUT" | jq -r '.session_id // "unknown"')
+# agent_type names the agent that ran (e.g. "implementer"); drop a plugin
+# namespace so plugin and template installs score under the same name.
+# Only trusted with a per-agent transcript: an inline main transcript can hold
+# several sidechains, and agent_type names just the one that stopped.
+AGENT=$(echo "$INPUT" | jq -r 'if .agent_transcript_path then (.agent_type // "" | sub("^[^:]+:"; "")) else "" end')
 [ -z "$TRANSCRIPT" ] || [ ! -f "$TRANSCRIPT" ] && exit 0
 
 # Resolve metrics dir without sourcing (hook may run detached).
@@ -37,7 +45,7 @@ if [ "$NEW" -eq 0 ]; then rm -f "$CHUNK"; exit 0; fi
 # One record per sidechain (subagent run), reconstructed from the uuid →
 # parentUuid chain. Grouping by chain root keeps parallel subagents on the
 # same model apart, so durations aren't inflated by overlapping runs.
-jq -cRs --arg session "$SESSION" '
+jq -cRs --arg session "$SESSION" --arg agent "$AGENT" '
   [ split("\n")[] | select(length > 0) | (fromjson? // empty) | select(type=="object") ] as $all
   | ($all | map(select(.uuid != null) | {key: .uuid, value: .parentUuid}) | from_entries) as $par
   | def root($u): ($par[$u] // null) as $p | if $p == null then $u else root($p) end;
@@ -53,6 +61,7 @@ jq -cRs --arg session "$SESSION" '
   | group_by(.root)[]
   | {ts: (now | todateiso8601), session: $session, kind: "subagent",
      model: .[0].model,
+     agent: (if $agent == "" then null else $agent end),
      turns: length,
      tok_in: (map(.ti) | add), tok_out: (map(.to) | add),
      cache_read: (map(.cr) | add), cache_write: (map(.cw) | add),
