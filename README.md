@@ -4,6 +4,8 @@ Reusable multi-agent workflow kit for **npm + TypeScript + Vitest + Vercel** pro
 
 The idea: instead of one general assistant doing everything, AgentAutoKit gives you a small **team of specialist agents** — each on the right model tier, each with the narrowest tools it needs — coordinated by an orchestrator and fenced in by guardrail hooks so nothing risky (secrets, deploys, un-tested code) slips through.
 
+The workflow itself is ported (and generalized) from the kit's reference project, **pick-tour (SportTora)** — a production multi-tenant tournament platform that runs this exact process end-to-end. Process improvements are proven there first, then folded back into the kit by hand (see [Upgrading to 2.0](#upgrading-to-20) and the Forked-agents warning near the end).
+
 ---
 
 ## Table of contents
@@ -27,19 +29,20 @@ The idea: instead of one general assistant doing everything, AgentAutoKit gives 
 
 ## Product at a glance
 
-AgentAutoKit is a drop-in `.claude/` configuration. Once installed into a project, typing `/init-kit <task>` starts a coordinated pipeline: explore → (design) → implement → (debug) → test → review, with two hooks acting as a safety net on every edit and every attempt to finish.
+AgentAutoKit is a drop-in `.claude/` configuration. Once installed into a project, typing `/init-kit <task>` starts a coordinated pipeline: think → size (S/M/L) → (spec + `spec-reviewer`, L only) → implement → (debug) → test → review, with four hooks acting as a safety net on every edit, every `gh pr create`, and every attempt to finish. The playbook itself — task sizing, worktree-first discipline, model routing — lives in `.claude/rules/*.md`, auto-loaded by Claude Code.
 
 The moving parts:
 
 | Part | What it is | Where it lives |
 |------|------------|----------------|
-| **Agents** | 8 specialists with scoped tools + model tiers | `agents/` (plugin) · `template/.claude/agents/` |
-| **Guardrails** | Shell hooks that block unsafe edits and un-verified finishes | `hooks/` · `template/.claude/hooks/` |
+| **Agents** | 10 specialists with scoped tools, model tier + effort | `agents/` (plugin) · `template/.claude/agents/` |
+| **Playbook** | Working discipline, Task Sizing S/M/L, model routing, orchestrator rules | `.claude/rules/workflow.md` (+ `epic-flow.md`, `general.md`) — template only, auto-loaded |
+| **Guardrails** | 4 shell hooks: block unsafe edits, remind the review gate before a PR, gate un-verified finishes | `hooks/` · `template/.claude/hooks/` |
 | **Telemetry & tuning** | Per-model speed/cost + fit scoring that feeds routing back into itself | `scripts/` + `SubagentStop` hook |
 | **Status line** | Live view of which agents are running (agent-panel rows + bottom bar) | `scripts/*statusline.sh` + `subagentStatusLine`/`statusLine` |
 | **Commands** | `/init-kit` (entry), `/kit-stats` (scorecard), `/kit-tune` (re-allocate) | `commands/` · `template/.claude/commands/` |
 | **Skills** | 14 auto-loaded skills: framework best practices + domain workflows | `skills/` · `template/.claude/skills/` |
-| **Companion plugins** | 9 plugins declared for the whole team via `enabledPlugins` | `template/.claude/settings.json` |
+| **Companion plugins** | 10 plugins declared for the whole team via `enabledPlugins` | `template/.claude/settings.json` |
 | **Installer** | Idempotent merge-aware `init.sh` — installs, upgrades, never clobbers | `scripts/init.sh` |
 
 ---
@@ -64,6 +67,12 @@ This merges `.claude/` (agents, commands, hooks, skills, **settings.json with pe
 - Files your project added itself (extra skills, agents, commands) are never touched — no duplicates, no conflicts.
 - `settings.json` is **deep-merged, never overwritten**: your permission rules, hooks, `enabledPlugins` and marketplaces are kept; the kit only fills gaps. To permanently opt out of a kit-declared plugin, set it to `false` instead of deleting the key (a deleted key gets re-filled on the next upgrade).
 - An existing root `CLAUDE.md` is never overwritten; the installed kit version is stamped in `.claude/.agentautokit-version`.
+
+### Upgrading to 2.0
+
+- `init.sh`'s deep merge **unions** permission lists rather than replacing them, so an existing project keeps its old blanket `Bash(git push:*)` deny even though the 2.0 template narrows this to denying only `dev`/`main` pushes and force-pushes (everything else moves to `ask`). Remove the old blanket deny by hand from `.claude/settings.json` if `github-workflow` should be able to push feature branches.
+- An existing root `CLAUDE.md` is **never overwritten**. The new playbook (task sizing, worktree-first, model routing) arrives entirely through `.claude/rules/workflow.md` (+ `epic-flow.md`, `general.md`), which IS synced on upgrade like any other kit file — but the *project-facts* sections that now live in the 2.0 template's `CLAUDE.md` (integration branch, security-sensitive paths, project-specific gates) won't appear in an older project's `CLAUDE.md` on their own. Copy them over by hand from [`template/.claude/CLAUDE.md`](template/.claude/CLAUDE.md).
+- `init.sh` now also adds `.claude/worktrees/` to the project's `.gitignore` if it isn't already there.
 
 ### B) As a Claude Code plugin (agents/commands/hooks/skills, no permission rules)
 
@@ -109,40 +118,45 @@ claude plugin validate ./AgentAutoKit --strict
 
 ## Full inventory: every tool & feature
 
-### The 8 agents
+### The 10 agents
 
-| Agent | Tier | Access | Job |
-|-------|------|--------|-----|
-| `orchestrator` | opus | read-only + Agent | Judges difficulty, routes to specialists, re-plans on failure, logs routing telemetry. Never writes code. |
-| `code-scout` | haiku | read-only | Cheap fan-out exploration: locate code, map structure before anyone edits. |
-| `arch-advisor` | opus | read-only | Design/architecture decisions before implementation. |
-| `implementer` | sonnet | read-write | Routine feature/bugfix implementation. |
-| `deep-debugger` | opus | read-write | Escalation target: tests failing ≥2×, async/race conditions, subtle state bugs. |
-| `test-writer` | sonnet | read-write | Coverage for new/changed logic. |
-| `code-reviewer` | opus | read-only | Pre-PR review (runs in parallel with security-auditor, once per PR). |
-| `security-auditor` | opus | read-only | Pre-PR security pass on auth/API/rules surfaces. |
+Every agent reads `CLAUDE.md` + `.claude/rules/` for project conventions and returns a concise, size-capped summary (`path:line`, no long dumps) instead of a full transcript — see [Deep dive](#deep-dive-what-each-agent-does) for each agent's exact output contract.
+
+| Agent | Model | Effort | Access | Job |
+|-------|-------|:---:|--------|-----|
+| `orchestrator` | claude-opus-5-5 | high | read-only + Agent | Judges difficulty, routes to specialists, re-plans on failure. Never writes code. |
+| `code-scout` | haiku | – | read-only | Cheap fan-out exploration: locate code, map structure before anyone edits. |
+| `arch-advisor` | claude-opus-5-5 | xhigh | read-only | Design/architecture decisions before implementation. |
+| `spec-reviewer` | claude-opus-5-5 | xhigh | read-only | Reviews an L-tier spec in `docs/superpowers/specs/` before the plan: 6 checks — out-of-scope reasons, verifiable conditions, perf/query constraints locked, types exist, data scoping & naming, implementable without questions. |
+| `implementer` | claude-sonnet-5-5 | high | read-write | Routine feature/bugfix implementation. |
+| `deep-debugger` | claude-opus-5-5 | xhigh | read-write | Escalation target: tests failing ≥2×, async/race conditions, subtle state bugs. |
+| `test-writer` | claude-sonnet-5-5 | high | read-write | Coverage for new/changed logic. |
+| `code-reviewer` | claude-opus-5-5 | xhigh | read-only | Pre-PR review (runs in parallel with security-auditor, once per PR). |
+| `security-auditor` | claude-opus-5-5 | xhigh | read-only | Pre-PR security pass on auth/API/rules surfaces. |
+| `github-workflow` | claude-sonnet-5-5 | high | git ops | Complex git ops only — multi-branch, rebase, conflicts. PRs always base the integration branch; never merges, never pushes protected branches, never force-pushes. |
 
 ### The 3 commands
 
 | Command | What it does |
 |---------|--------------|
-| `/init-kit <task>` | Entry point — kicks off the coordinated explore → design → implement → debug → test → review pipeline. |
+| `/init-kit <task>` | Entry point — kicks off the coordinated think → size (S/M/L) → implement → debug → test → review pipeline. |
 | `/kit-stats` | Aggregates telemetry into a scorecard: per-model p50/p95 duration + cost (incl. cache tokens), per-(agent, tier) fit score, pipeline health. |
 | `/kit-tune [--apply]` | Proposes (dry-run) or applies model-tier promotions/demotions from measured fit, guarded by `min_samples`. |
 
-### The guardrail hooks
+### The guardrail hooks (4)
 
 | Hook | Event | Enforcement |
 |------|-------|-------------|
-| `protect-files.sh` | `PreToolUse` (Edit/Write) | Blocks edits to `.env*`, secrets, keys, CI workflows, migrations. |
-| `verify.sh` | `Stop` | Blocks finishing until `tsc --noEmit` + `vitest run` are green on a dirty worktree; logs pass/fail telemetry. |
-| `metrics-subagent.sh` | `SubagentStop` | Measures every subagent run (tokens incl. cache, duration per sidechain) into `events.jsonl`. Never blocks. |
+| `protect-files.sh` | `PreToolUse` (Edit/Write/MultiEdit) | Blocks edits to `.env*`, secrets, keys, CI workflows, migrations. |
+| `review-gate.sh` | `PreToolUse` (Bash) | Non-blocking: when the command contains `gh pr create`, injects the mandatory review-gate checklist as additional context. Ported from pick-tour. |
+| `verify.sh` | `Stop` | Runs `tsc --noEmit` only if `tsconfig.json` exists, and Vitest only if `package.json` lists it — as `vitest related --run` on changed + untracked source files (the full suite is CI's job). A docs-only change skips cleanly. Blocks finishing on failure; a failed run records the failing step + last 20 output lines. 300s timeout. |
+| `metrics-subagent.sh` | `SubagentStop` | Measures every subagent run (tokens incl. cache, duration per sidechain), tagged with its agent name from `agent_type`, into `events.jsonl`. Never blocks. |
 
 Hooks are the kit's enforcement layer — CLAUDE.md only reminds; hooks make rules stick. The bundled **hookify** plugin authors new ones conversationally.
 
 ### Telemetry & self-tuning (details [below](#self-tuning-measure--score--re-allocate))
 
-- Two-sided measurement: hard numbers from transcripts (speed/tokens/cost) + pipeline proxies from the orchestrator (escalations, review rounds, verify pass rate).
+- Two-sided measurement: hard numbers from transcripts (speed/tokens/cost, tagged per agent + model tier) + pipeline proxies the orchestrator logs deliberately (escalations, review rounds; verify pass rate comes from the `Stop` hook).
 - Fit scored per (agent, tier) so promotions are evaluated on fresh evidence; demotion is opt-in and requires a real escalation signal.
 - Auto-tune edits one reversible `model:` frontmatter line, dry-run by default, human-reviewed diff.
 
@@ -150,13 +164,14 @@ Hooks are the kit's enforcement layer — CLAUDE.md only reminds; hooks make rul
 
 `frontend-design` · `responsive-design` (+4 refs) · `accessibility` (+4 refs) · `next-best-practices` (+20 refs) · `playwright-best-practices` (~60 refs) · `e2e-flow` · `worktree-dev` · `roster-import` · `firestore-config-edit` · `firebase-best-practices` (+8 refs) · `payment-integration` (+6 refs) · `git-workflow` (+5 refs) · `i18n-best-practices` (+6 refs) · `conventions` — auto-loaded by Claude when the task matches their triggers.
 
-### The 9 companion plugins
+### The 10 companion plugins
 
-`firebase` · `playground` · `playwright` · `github` · `code-review` · `context7` (official marketplace) · `hookify` (claude-code) · `superpowers` (obra) · `claude-mem` (cross-session memory) — declared once in the template's `settings.json`, offered to every teammate who trusts the folder.
+`firebase` · `playground` · `playwright` · `github` · `code-review` · `context7` (official marketplace) · `hookify` (claude-code) · `superpowers` (obra) · `claude-mem` (cross-session memory) · `ponytail` (DietrichGebert — keeps diffs small) — declared once in the template's `settings.json`, offered to every teammate who trusts the folder.
 
-### Permission guardrails (template only)
+### Template settings (`template/.claude/settings.json`, template only)
 
-`deny` on secret reads (`.env*`, `*.pem`, `*.key`), destructive shell (`rm -rf`), `git push`, and all deploy commands; `ask` on commits and PR creation; `allow` on the safe everyday loop (lint/test/build/tsc/vitest, kit scripts, read-only git/vercel).
+- **Main session:** pinned to `"model": "claude-opus-5-5"` — the same model on every machine; override per session with `claude --model sonnet`. `env.DISABLE_OMC = "1"` opts out of stacking a second orchestration layer on top of the kit's own, matching pick-tour, the reference project.
+- **Permissions:** `deny` on secret reads (`.env*`, `*.pem`, `*.key`), destructive shell (`rm -rf`), pushes to `dev`/`main` (incl. `-u` variants) and force-pushes, and all deploy commands; `ask` on commits, any other `git push`, and PR creation/merge; `allow` on the safe everyday loop (lint/test/build/`tsc`/`vitest`/`eslint`, kit scripts, read-only git/vercel).
 
 ### Live status line
 
@@ -183,7 +198,7 @@ flowchart TB
   T -->|"scripts/init.sh"| PROJ
   subgraph PROJ["Your project/.claude"]
     CMD["/init-kit command"]
-    AG["8 specialist agents"]
+    AG["10 specialist agents"]
     HK["Guardrail hooks"]
     ST["settings.json<br/>permission deny/allow/ask"]
   end
@@ -195,42 +210,63 @@ flowchart TB
 
 **Rule of thumb:** use the **template** if you want the permission guardrails (recommended); use the **plugin** if you just want reusable agents/commands/hooks and will add the deny rules yourself.
 
+### Where the playbook lives
+
+Claude Code auto-loads every `.claude/rules/*.md` file into context, so the kit's playbook ships as data the agents read, not prose duplicated across files:
+
+- **`workflow.md`** — working discipline (think before coding, YAGNI, surgical changes), worktree-first, Task Sizing S/M/L, the model-routing table, orchestrator rules, and the main-session model policy. `/init-kit` and `orchestrator.md` both summarize this file.
+- **`epic-flow.md`** — an optional wrapper above S/M/L for a multi-feature epic where the data model or UX isn't settled yet (lock the data → optional thin UX prototype → slice production into S/M tasks → one aspect sweep). A single task skips it entirely.
+- **`general.md`** — code style and the mandatory Git workflow (protected branches, PR-only, forbidden commands).
+
+`init.sh` re-syncs these three files on upgrade, same as agents/hooks/commands. The root `CLAUDE.md` template now holds only **project facts** — commands, the integration branch, security-sensitive paths, project-specific gates, project rules — so it stays short and rarely drifts from the rules files.
+
+Also new: **`.claude/workflows/review-branch.js`** (template only) — an opt-in, multi-dimension review of the current branch's diff against a base (default `origin/dev`): one reviewer per dimension (correctness, data isolation & authz, payments & secrets, UI states, performance), each finding then adversarially re-verified before it's reported. Complements, and does not replace, the mandatory `code-reviewer` + `security-auditor` gate.
+
 ---
 
 ## The agent team
 
-Eight agents split into three lanes — one coordinator, four read-only advisors, three read-write builders. Model tier is chosen per role: `haiku` for cheap fan-out exploration, `sonnet` for routine building, `opus` for judgement-heavy work (design, hard bugs, review).
+Ten agents split into four lanes — one coordinator, five read-only advisors, three read-write builders, one git-ops specialist. Model tier is chosen per role: `haiku` for cheap fan-out exploration, `sonnet` for routine building and git ops, `opus` for judgement-heavy work (design, spec review, hard bugs, code/security review).
+
+The `sonnet` and `opus` tiers are **pinned to explicit model IDs** in agent frontmatter — `claude-sonnet-5-5` (Sonnet 5.5) and `claude-opus-5-5` (Opus 5.5) — so a Claude Code alias update never silently changes which model a role runs on. `code-scout` keeps the `haiku` alias (Haiku 4.5, which has no `effort` setting). Every other agent also pins an explicit `effort` (`high` or `xhigh`) in frontmatter, tuned per role. Tier names (`haiku`/`sonnet`/`opus`) in the tables below refer to these models.
 
 ```mermaid
 flowchart TB
-  ORC["orchestrator · opus<br/>coordinator, read-only, never writes code"]
+  ORC["orchestrator · opus/high<br/>coordinator, read-only, never writes code"]
   subgraph RO["Read-only advisors"]
     direction LR
     SC["code-scout · haiku<br/>explore & map"]
-    AA["arch-advisor · opus<br/>design tradeoffs"]
-    CR["code-reviewer · opus<br/>quality review"]
-    SA["security-auditor · opus<br/>security review"]
+    AA["arch-advisor · opus/xhigh<br/>design tradeoffs"]
+    SR["spec-reviewer · opus/xhigh<br/>spec gaps, L tier"]
+    CR["code-reviewer · opus/xhigh<br/>quality review"]
+    SA["security-auditor · opus/xhigh<br/>security review"]
   end
   subgraph RW["Read-write builders"]
     direction LR
-    IM["implementer · sonnet<br/>default coding"]
-    DD["deep-debugger · opus<br/>hard bugs"]
-    TW["test-writer · sonnet<br/>vitest coverage"]
+    IM["implementer · sonnet/high<br/>default coding"]
+    DD["deep-debugger · opus/xhigh<br/>hard bugs"]
+    TW["test-writer · sonnet/high<br/>vitest coverage"]
+  end
+  subgraph GO["Git ops"]
+    GW["github-workflow · sonnet/high<br/>multi-branch, rebase, conflicts"]
   end
   ORC --> RO
   ORC --> RW
+  ORC --> GO
 ```
 
-| Agent | Model | Writes code? | Tools | One-line job |
-|-------|-------|:---:|-------|--------------|
-| `orchestrator` | opus | no | `Read, Grep, Glob` + delegation | Judge difficulty, route work, re-plan on failure |
-| `code-scout` | haiku | no | `Read, Grep, Glob` | Locate files, call sites, dead code, TODOs |
-| `arch-advisor` | opus | no | `Read, Grep, Glob` | 2–3 approaches + a recommendation |
-| `implementer` | sonnet | **yes** | `Edit, Write, npm/tsc/vitest, git status/diff` | Smallest change that solves the task |
-| `deep-debugger` | opus | **yes** | `Edit, Write, npm/tsc/vitest, git status/diff` | Root-cause fix for async/race/type/state bugs |
-| `test-writer` | sonnet | **yes** | `Edit, Write, vitest, git diff` | Vitest coverage for edge & error paths |
-| `code-reviewer` | opus | no | `Read, Grep, Glob, git diff/log` | Severity-rated review of the diff |
-| `security-auditor` | opus | no | `Read, Grep, Glob, git diff` | Secrets, injection, authz, path traversal |
+| Agent | Model | Effort | Writes code? | Tools | One-line job |
+|-------|-------|:---:|:---:|-------|--------------|
+| `orchestrator` | opus | high | no | `Read, Grep, Glob` + delegation | Judge difficulty, route work, re-plan on failure |
+| `code-scout` | haiku | – | no | `Read, Grep, Glob` | Locate files, call sites, dead code, TODOs |
+| `arch-advisor` | opus | xhigh | no | `Read, Grep, Glob` | 2–3 approaches + a recommendation |
+| `spec-reviewer` | opus | xhigh | no | `Read, Grep, Glob` | Gap-check an L-tier spec before the plan (6 checks) |
+| `implementer` | sonnet | high | **yes** | `Edit, Write, npm/tsc/vitest, git status/diff` | Smallest change that solves the task |
+| `deep-debugger` | opus | xhigh | **yes** | `Edit, Write, npm/tsc/vitest, git status/diff` | Root-cause fix for async/race/type/state bugs |
+| `test-writer` | sonnet | high | **yes** | `Edit, Write, vitest, git diff` | Vitest coverage for edge & error paths |
+| `code-reviewer` | opus | xhigh | no | `Read, Grep, Glob, git diff/log` | Severity-rated review of the diff |
+| `security-auditor` | opus | xhigh | no | `Read, Grep, Glob, git diff` | Secrets, injection, authz, path traversal |
+| `github-workflow` | sonnet | high | no | `Read, Grep, Glob, git status/diff/log/fetch/switch/checkout/add/commit/rebase/push, gh pr create/view/list, tsc` | Branch, commit, rebase, PR — complex git ops only |
 
 ---
 
@@ -240,9 +276,12 @@ flowchart TB
 The entry brain. It never edits code itself; its whole job is judgement and routing.
 
 - **Inputs:** the task, plus a quick read of `CLAUDE.md` + `package.json` to load conventions and commands.
-- **Decides:** how hard the task is, which specialist to call, and — critically — what to do when a branch fails (re-plan rather than stop).
+- **Thinks before coding:** states its assumptions; stops and asks the user with `AskUserQuestion` when the request is ambiguous instead of guessing.
+- **Sizes the task S/M/L first:** Q1 — approach statable in one sentence? Q2 — does it touch schema, payments, webhooks, auth, or a security rule? S implements directly; M gets a 10–20 line checkbox plan; L gets a spec reviewed by `spec-reviewer` before the plan is written. Ambiguous rounds UP.
+- **Decides:** which specialist to call, and — critically — what to do when a branch fails (re-plan rather than stop).
 - **Escalation rule it enforces:** send `implementer` → `deep-debugger` **only** when the same test fails ≥ 2× on one change, or the problem is async/race, complex generics, or subtle state.
 - **Feedback loop:** if review comes back "changes requested", route findings back to `implementer`, capped at **2 rounds**; after that, stop and summarize the blocker for the human.
+- **Complex git ops** (multi-branch, rebase, conflicts) route to `github-workflow`; a single commit + PR is done directly by the main session.
 - **Hard limits:** never push/deploy/delete, never bypass the verify gate.
 
 > Note on execution: the orchestration *playbook* is what the `/init-kit` command runs in the main session (which can delegate). `orchestrator.md` documents that playbook.
@@ -258,6 +297,13 @@ Pulled in only when a task needs a real design decision, so you pay for opus jud
 
 - **Returns:** 2–3 viable approaches with concrete tradeoffs, one clear recommendation tied to the codebase's existing patterns, and flagged risks (coupling, migration cost, performance, testability).
 - **Style:** decision-oriented — always ends with a recommendation, not a menu.
+
+### `spec-reviewer` — the spec gate (opus, read-only, L tier only)
+Reviews an L-tier spec in `docs/superpowers/specs/` right before the plan is written — the cheapest point to catch a gap, before any code exists.
+
+- **Checks, in order:** an `Explicitly out of scope` section where every bullet carries a reason; every condition written as a verifiable expression, not an adjective; performance/query constraints locked at spec level; every type mentioned actually exists in the repo (verified by grep, `file:line`); data scoping & naming checked against `CLAUDE.md`/`.claude/rules/`; implementable without asking a further question.
+- **Reporting style:** reports every gap, including low-confidence ones, each tagged with a confidence level — it does not self-filter by severity, and it does not invent gaps to fill a quota.
+- **Boundaries:** never edits the spec; reports only.
 
 ### `implementer` — the default builder (sonnet)
 The workhorse. Most tasks live and die here.
@@ -290,35 +336,46 @@ Runs **in parallel** with `code-reviewer` so the two gates don't serialize.
 - **Checks:** committed/logged secrets, injection (SQL/command/XSS), unsafe deserialization, missing authz/authn and IDOR, unsafe user-input handling and path traversal, dependency risks introduced by the change.
 - **Returns:** findings by severity with concrete remediation; reports only, never edits.
 
+### `github-workflow` — the git specialist (sonnet, complex git ops only)
+Reserved for multi-branch work, rebases, and conflict resolution — a single commit + PR stays with the main session, which already has the context and doesn't need a round-trip through a subagent.
+
+- **Method:** branches off the latest integration branch (`{type}/{short-description}`, Conventional Commits); PRs always target the integration branch, never `main`.
+- **Hard limits:** never runs `gh pr merge`, never pushes to `dev`/`main`, never force-pushes, never deploys.
+- **Output contract:** branch name, commit SHAs + messages, PR URL, and anything skipped or blocked — never claims pushed/created without the actual command output.
+
 ---
 
 ## The workflow, step by step
 
 ```mermaid
 flowchart TD
-  A["/init-kit &lt;task&gt;"] --> B["orchestrator<br/>read CLAUDE.md + package.json, judge difficulty"]
-  B --> C["code-scout<br/>map files, call sites, TODOs"]
-  C --> D{"design decision<br/>needed?"}
-  D -->|yes| E["arch-advisor<br/>2-3 approaches + recommendation"]
-  D -->|no| F["implementer<br/>smallest change, tsc clean + vitest green"]
-  E --> F
-  F --> G{"same test fails ≥2×<br/>or async / race / types?"}
+  A["/init-kit &lt;task&gt;"] --> B["orchestrator<br/>read CLAUDE.md + package.json<br/>think first — ask the user if ambiguous"]
+  B --> C["size S / M / L<br/>Q1: approach in one sentence? Q2: schema / payments / webhooks / auth / security rules?"]
+  C -->|S| S1["implement directly<br/>verify: tsc + related test"]
+  C -->|M| M1["10-20 line checkbox plan<br/>docs/superpowers/plans/ → confirm"]
+  C -->|L| L1["spec in docs/superpowers/specs/<br/>(optional arch-advisor first)"]
+  L1 --> L2["spec-reviewer<br/>6 gap checks"]
+  L2 --> L3["plan → confirm"]
+  S1 --> F["implementer<br/>smallest change, tsc clean + vitest green"]
+  M1 --> F
+  L3 --> F
+  F --> G{"same test fails twice,<br/>or root cause unclear?"}
   G -->|yes| H["deep-debugger<br/>hypothesis-first root-cause fix"]
   G -->|no| I["test-writer<br/>edge + error cases"]
   H --> I
-  I --> J["code-reviewer  ∥  security-auditor<br/>once per PR, in parallel"]
+  I --> J["code-reviewer  ∥  security-auditor<br/>mandatory gate · tsc green"]
   J --> K{"changes<br/>requested?"}
   K -->|"yes · max 2 rounds"| F
   K -->|no| L["human opens / merges PR"]
 ```
 
-The two decision diamonds are where the kit earns its keep: **escalation** (route hard bugs to opus instead of letting sonnet thrash) and the **review loop** (bounded at 2 rounds so it can't spin forever).
+The kit earns its keep at three points: **sizing** (S skips ceremony entirely; L gets a spec gap-checked by `spec-reviewer` before anyone writes a plan), **escalation** (route hard bugs to opus instead of letting sonnet thrash), and the **review loop** (bounded at 2 rounds so it can't spin forever). `code-reviewer` runs on every diff except docs/UI-copy-only ones; `security-auditor` joins it in parallel whenever the diff touches a security-sensitive path, independent of S/M/L. Complex git ops (multi-branch, rebase, conflicts) route to `github-workflow` outside this diagram — a single commit + PR stays with the main session.
 
 ---
 
 ## A run, end to end
 
-A concrete trace of "add rate limiting to the login endpoint":
+A concrete trace of "add rate limiting to the login endpoint" (sized M — the approach is one sentence and it's a new middleware mirroring an existing pattern, though it still triggers `security-auditor` since the path is login/auth):
 
 ```mermaid
 sequenceDiagram
@@ -330,19 +387,21 @@ sequenceDiagram
   participant R as code-reviewer
   participant Sec as security-auditor
   Dev->>O: /init-kit "add rate limiting to login"
+  O->>O: read CLAUDE.md + package.json, size M<br/>10-20 line plan in docs/superpowers/plans/, confirm
   O->>S: locate endpoint + middleware
   S-->>O: files, call sites, TODOs
   O->>I: implement rate limiter
   I-->>O: diff (tsc clean, vitest green)
   O->>T: cover edge + error cases
   T-->>O: tests added, green
-  par once per PR
+  par mandatory review gate
     O->>R: review diff
-  and
+  and security-sensitive path (login/auth)
     O->>Sec: audit diff
   end
   R-->>O: findings by severity
   Sec-->>O: security findings
+  Note over O: gh pr create → review-gate.sh<br/>reminds the checklist (non-blocking)
   O-->>Dev: summary + PR-ready branch
 ```
 
@@ -350,7 +409,7 @@ sequenceDiagram
 
 ## Guardrails
 
-Two hooks enforce the rules regardless of what any agent decides. They are the reason the kit is safe to run semi-autonomously.
+Three hooks act as a safety net regardless of what any agent decides — two block, one reminds. (A fourth, `metrics-subagent.sh`, is telemetry-only; see [Self-tuning](#self-tuning-measure--score--re-allocate).)
 
 ```mermaid
 flowchart LR
@@ -361,23 +420,31 @@ flowchart LR
     PD -->|yes| BLK["exit 2 — edit blocked"]
     PD -->|no| OK["edit allowed"]
   end
+  subgraph PR["On every Bash command"]
+    direction TB
+    B1["PreToolUse"] --> RG["review-gate.sh"]
+    RG --> RC{"command contains<br/>'gh pr create'?"}
+    RC -->|yes| REM["inject review-gate<br/>reminder (non-blocking)"]
+    RC -->|no| PASS["no-op"]
+  end
   subgraph FIN["When an agent tries to stop"]
     direction TB
     S1["Stop hook"] --> VF["verify.sh"]
-    VF --> VG{"tsc --noEmit &&<br/>vitest run pass?"}
+    VF --> VG{"tsc --noEmit (if tsconfig)<br/>&& vitest related --run (if vitest) pass?"}
     VG -->|no| RB["block + feed failures back"]
     VG -->|yes| DONE["finish allowed"]
   end
 ```
 
 - **`protect-files.sh`** (PreToolUse on `Edit|Write|MultiEdit`) — blocks writes to `.env*`, `*.pem`, `*.key`, `secrets/`, `.github/workflows/`, and `migrations/` (matched whether the path is absolute or root-relative). Exits `2`, and its stderr is fed back to the agent so it knows *why* it was blocked.
-- **`verify.sh`** (Stop) — before an agent is allowed to finish, runs `tsc --noEmit` then `vitest run`. On failure it emits a `block` decision with the tail of the output, forcing a fix before completion. Skips gracefully when there is no `package.json`, and guards against infinite Stop-hook loops.
+- **`review-gate.sh`** (PreToolUse on `Bash`) — when a command contains `gh pr create`, injects the mandatory review-gate checklist as additional context. Non-blocking: it reminds, the agent still decides. Ported from pick-tour, the kit's reference project.
+- **`verify.sh`** (Stop) — before an agent is allowed to finish, runs `tsc --noEmit` (only if `tsconfig.json` exists), then, if `package.json` lists Vitest, `vitest related --run` on changed + untracked source files (the full suite is CI's job). A docs-only change skips cleanly. On failure it emits a `block` decision with the tail of the output, forcing a fix before completion, and records the failing step + last 20 output lines to the verify telemetry event. 300s timeout; guards against infinite Stop-hook loops.
 
 Complementing the hooks, the template's `settings.json` sets **permission** policy:
 
-- `deny` — reading `.env`/`*.pem`/`*.key`/`secrets/`, plus `rm -rf`, `git push`, and destructive `vercel` verbs (`deploy`, `--prod`, `promote`, `rollback`, `remove`, `env rm`, `domains`).
-- `allow` — safe read-only commands (`git status/diff/log`, `npm run lint/test/build`, `tsc`, `vitest`, `vercel env pull/list/logs`).
-- `ask` — `git commit`, `gh pr create`, `gh pr merge` (humans confirm).
+- `deny` — reading `.env`/`*.pem`/`*.key`/`secrets/`, plus `rm -rf`, pushes to `dev`/`main` (incl. `-u` variants) and force-pushes, and destructive `vercel` verbs (`deploy`, `--prod`, `promote`, `rollback`, `remove`, `env rm`, `domains`).
+- `allow` — safe read-only commands (`git status/diff/log`, `npm run lint/test/build`, `tsc`, `vitest`, `eslint`, `vercel env pull/list/logs`).
+- `ask` — `git commit`, any other `git push`, `gh pr create`, `gh pr merge` (humans confirm).
 
 ---
 
@@ -408,7 +475,7 @@ The kit ships a set of skills (loaded automatically by Claude when relevant) and
 
 ### Companion plugins (declared in the template's `settings.json`)
 
-`enabledPlugins` + `extraKnownMarketplaces` in `template/.claude/settings.json` declare: `firebase`, `playground`, `playwright`, `github`, `code-review`, `context7` (all `@claude-plugins-official`), `hookify` (`@claude-code`), `superpowers` (`@superpowers-marketplace`, obra's), and `claude-mem` (`@thedotmack`) for semantic cross-session memory — it captures tool activity, compresses it with Claude into local SQLite, and injects relevant context into new sessions. When a teammate trusts the project folder, Claude Code surfaces these for install.
+`enabledPlugins` + `extraKnownMarketplaces` in `template/.claude/settings.json` declare: `firebase`, `playground`, `playwright`, `github`, `code-review`, `context7` (all `@claude-plugins-official`), `hookify` (`@claude-code`), `superpowers` (`@superpowers-marketplace`, obra's), `claude-mem` (`@thedotmack`) for semantic cross-session memory — it captures tool activity, compresses it with Claude into local SQLite, and injects relevant context into new sessions — and `ponytail` (`@ponytail`, DietrichGebert's) to keep diffs small. When a teammate trusts the project folder, Claude Code surfaces these for install.
 
 > Plugins cannot cascade-install other plugins — a plugin's own `settings.json` only honours `agent`/`subagentStatusLine`. So, like the permission rules, the companion-plugin declarations only ship with the **template**.
 
@@ -426,10 +493,10 @@ flowchart LR
     direction TB
     OR["orchestrator routes"] --> SUB["subagents do the work"]
   end
-  SUB -->|"SubagentStop hook<br/>metrics-subagent.sh"| EV["events.jsonl<br/>speed + tokens per model"]
-  OR -->|"kit-record.sh<br/>route / escalation / review"| EV
+  SUB -->|"SubagentStop hook<br/>metrics-subagent.sh"| EV["events.jsonl<br/>speed + tokens, tagged per agent + model"]
+  OR -->|"kit-record.sh<br/>escalation / review"| EV
   VER["verify.sh · Stop hook"] -->|"pass / fail"| EV
-  EV -->|"/kit-stats"| SC["scorecard.json + .md<br/>fit score + cost per model"]
+  EV -->|"/kit-stats"| SC["scorecard.json + .md<br/>fit score + cost per (agent, tier)"]
   SC -->|"/kit-tune --apply<br/>only if ≥ min_samples"| FM["agent frontmatter<br/>model tier promoted / demoted"]
   FM -->|"next run"| OR
   SC -.->|"read at start of run"| OR
@@ -441,16 +508,16 @@ Two halves, deliberately kept separate because they differ in how measurable the
 
 | Signal | Source | Reliability |
 |--------|--------|-------------|
-| **Speed & token cost per model** | `SubagentStop` hook parses the session transcript (`isSidechain` turns → model, `usage`, timestamps) | Directly measured |
-| **"Fit" per agent** | Pipeline **proxies** logged by the orchestrator: escalation to `deep-debugger`, review rounds, verify first-pass | Proxy — correlates with quality, not ground truth |
+| **Speed & token cost per model** | `SubagentStop` hook reads `agent_transcript_path` (each subagent's own transcript; falls back to `transcript_path` on older Claude Code) and tags each record with `agent` from `agent_type` (plugin namespace stripped) | Directly measured |
+| **"Fit" per (agent, tier)** | Agent-tagged subagent records give the run count per tier; pipeline **proxies** the orchestrator logs deliberately (escalation to `deep-debugger`, review rounds) give the outcome | Proxy — correlates with quality, not ground truth |
 
-There is no automatic quality oracle, so "fit" is defined as objective pipeline outcomes. For v1: `fit_score = 1 − escalation_rate` (an agent that keeps needing escalation is under-powered for its tasks). Fit is computed **per (agent, tier)** — the route events record which tier the agent was on — so after a promotion the new tier starts with a clean score instead of inheriting the failures that caused the promotion.
+There is no automatic quality oracle, so "fit" is defined as objective pipeline outcomes. For v1: `fit_score = 1 − escalation_rate` (an agent that keeps needing escalation is under-powered for its tasks). Fit is computed **per (agent, tier)** — the agent-tagged subagent records and escalation events record which tier the agent was on — so after a promotion the new tier starts with a clean score instead of inheriting the failures that caused the promotion. The orchestrator no longer logs a route event per delegation; `kit-stats` derives per-agent run counts from the tagged `subagent` records instead.
 
 ### The three commands / files
 
-- **Telemetry** lands in `.claude/metrics/events.jsonl` (git-ignored). Written by the `SubagentStop` hook (speed/cost), `verify.sh` (pass/fail), and `kit-record.sh` (routing/escalation/review, called by the orchestrator).
+- **Telemetry** lands in `.claude/metrics/events.jsonl` (git-ignored). Written by the `SubagentStop` hook (speed/cost, tagged per agent), `verify.sh` (pass/fail, plus the failing step + tail on a red run), and `kit-record.sh` (escalation/review outcomes, called by the orchestrator).
 - **`/kit-stats`** → aggregates events into `.claude/metrics/scorecard.{json,md}`: per-model p50/p95 duration + estimated cost (including cache read/write tokens, which dominate real Claude Code usage), per-(agent, tier) fit score, and pipeline health (verify first-pass rate, avg review rounds).
-- **`/kit-tune`** → reads the scorecard and, **only past a sample threshold**, moves an agent along the ladder `haiku → sonnet → opus`. Dry-run by default; `--apply` edits the `model:` frontmatter line and logs the decision to `tuning-log.md`. The edit is a normal diff a human reviews before committing.
+- **`/kit-tune`** → reads the scorecard and, **only past a sample threshold**, moves an agent along the ladder `haiku → claude-sonnet-5-5 → claude-opus-5-5`. Dry-run by default; `--apply` edits the `model:` frontmatter line (writing the pinned ID) and logs the decision to `tuning-log.md`. The edit is a normal diff a human reviews before committing.
 
 ### Tuning thresholds
 
@@ -465,10 +532,10 @@ An agent is **promoted** one tier when it has ≥ `min_samples` runs **on its cu
 Token prices for the cost estimate live in `.claude/metrics/pricing.json` — set your real per-model rates, including cache pricing:
 
 ```json
-{ "sonnet": { "in": 3, "out": 15, "cache_read": 0.3, "cache_write": 3.75 } }
+{ "sonnet": { "in": 2, "out": 10, "cache_read": 0.2, "cache_write": 2.5 } }
 ```
 
-`cache_read`/`cache_write` default to 0.1× / 1.25× of `in` when omitted.
+`cache_read`/`cache_write` default to 0.1× / 1.25× of `in` when omitted. The built-in defaults are Haiku 4.5 / Sonnet 5.5 / Opus 5.5 list prices; Opus 5.5 cache reads are 0.05× of `in` ($0.20), so set `cache_read` explicitly if you override its price.
 
 > **Honest limits:** the transcript format is internal and may change between Claude Code versions, so the parser is defensive and best-effort. Proxies correlate with quality but are not a substitute for it. Small samples are noisy — that is what `min_samples` guards against. Full auto-tune is scoped to a single reversible frontmatter edit, never anything destructive.
 
@@ -526,7 +593,7 @@ Per the [plugin reference](https://code.claude.com/docs/en/plugins-reference), a
 
 ## Customizing
 
-- Swap model aliases in agent frontmatter (`opus`/`sonnet`/`haiku`) or pin IDs (`claude-opus-4-8`, `claude-sonnet-5`, `claude-haiku-4-5-20251001`).
+- Change the pinned model IDs in agent frontmatter (`claude-opus-5-5`, `claude-sonnet-5-5`) — or use floating aliases (`opus`/`sonnet`/`haiku`) if you prefer auto-upgrades. Each non-haiku agent also carries an `effort:` line (`high`/`xhigh`) alongside its pinned model, tuned per role; Haiku 4.5 doesn't support `effort`, so `code-scout` omits it. When bumping a pin, also update `kit_rank_alias` in `scripts/kit-metrics-lib.sh` (what `/kit-tune` writes on promotion) and the default prices in `scripts/kit-stats.sh`.
 - Edit `hooks/protect-files.sh` to adjust protected paths.
 - Tighten/loosen `template/.claude/settings.json` permissions per project.
 
