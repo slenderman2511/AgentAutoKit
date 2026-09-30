@@ -29,6 +29,24 @@ production and is where process improvements are proven first. When evolving the
 - Bump `version` in `.claude-plugin/plugin.json` on every behavior change — Claude Code only
   re-pulls a plugin when it changes.
 
+## Skills — porting from pick-tour
+
+- pick-tour's third-party skills are **symlinks** into `pick-tour/.agents/skills/` (installed by a
+  skills registry; sources in `pick-tour/skills-lock.json`). Copy with `cp -RL` so the kit gets
+  real files, never dangling links.
+- **Third-party skill:** vendor unmodified, only if the upstream repo is licensed (check
+  `gh api repos/<owner>/<repo>/license`). Add the upstream `LICENSE` text and a `SOURCE.md`
+  (upstream repo, license, date). Never vendor an unlicensed repo — point to its install command
+  in the template `CLAUDE.md` instead (e.g. `vercel-labs/next-skills` → moved to `vercel/next.js`).
+- **pick-tour workflow skill** (context-checkpoint, ui-*, github-issue-*): generalize — project
+  facts come from the template `CLAUDE.md` sections "Design system", "Source of truth",
+  "Issue tracking", "Git workflow".
+- **Domain skills** (`roster-import`, `firestore-config-edit`, `e2e-flow`) stay pickleball-specific
+  and are refreshed verbatim from pick-tour.
+- Same name, different skill: `accessibility` (kit's own, fuller than pick-tour's addyosmani one)
+  and `worktree-dev` (kit's generic version + pick-tour's env-file lesson) are kit-owned.
+- Skills live in both `skills/` and `template/.claude/skills/` — keep them identical.
+
 ## Models
 
 Agent tiers are pinned IDs: `claude-opus-5-5`, `claude-sonnet-5-5`, `haiku` (Haiku 4.5, no

@@ -1,83 +1,75 @@
 ---
 name: firestore-config-edit
-description: Use when editing, seeding, or syncing Firestore configuration in pickleball-tour — tenant config (tenants/{tenantId}, landing/theme/brand), event config (events/{eventId} fields like delegationConfig, prizeStructure, infoSections), platform config (system_config/*, global_settings), or deploying firestore.rules. Triggers - "change tenant theme", "seed event config", "update delegation quota", "sync config to dev", "deploy Firestore rules".
+description: Edit tenant/event CONFIG directly in Firestore (theme, brand, feature flags, nav text) and bust the app cache so the change shows up. Use whenever flipping something on a tenant or event doc outside the admin UI — brand.themeClass, showNavText, landing config, featureFlags. Explains the 1-hour tenant-config cache, the tags each doc uses, and the GET /api/revalidate bust endpoint.
 ---
-# Firestore Config Editing (pickleball-tour)
 
-## Where config lives
+# Editing tenant/event config in Firestore
 
-| Path | Scope | Client write access (firestore.rules) |
-|---|---|---|
-| `system_config/{docId}` (e.g. `pvna`, `broadcast`) | Platform-global secrets/integrations | `allow read, write: if false` — Admin SDK scripts ONLY |
-| `global_settings/{document=**}` | Platform-global | read public, write `isGlobalAdmin()` |
-| `counters/{document=**}` | Platform-global | read public, write `isGlobalAdmin()` |
-| `tenants/{tenantId}` | Tenant doc: `brand.*`, `landing.type`, `landing.sections` | update `isTenantAdminOf(tenantId)`; create/delete `isGlobalAdmin()` |
-| `tenants/{tenantId}/settings/{document=**}` | Tenant settings | write `isTenantAdminOf(tenantId)` |
-| `events/{eventId}` | Per-event config fields: `delegationConfig`, `infoSections`, `rulesAndFormat`, `prizeStructure`, `registrationInfo`, `restrictions`, `translations`, `brand.*`, `status` | update by global/tenant/event admin, gated on `resource.data.tenantId` |
-| `events/{eventId}/categories/{catId}` | Category/division config (`tier`, `type`, `gender`, `teamConfig`, `divisions[]`) | event-scoped admin |
+Editing a `tenants/*` or `events/*` doc directly (Firestore console or an MCP
+`firestore_update_document`) does **NOT** auto-bust the app cache — the admin UI routes call
+`revalidateTag(...)` for you, but a raw Firestore write does not. The change then waits out
+the cache TTL (up to **1 hour** for tenant config). This has bitten the HPF theme rollout.
 
-Environments: PROD = `pickleball-tour-prod` (`.env.production`), DEV = `pickleball-tour-dev` (`.env.development`). Scripts read `FIREBASE_PROJECT_ID` / `NEXT_PUBLIC_FIREBASE_PROJECT_ID`, `FIREBASE_CLIENT_EMAIL`, `FIREBASE_PRIVATE_KEY` from these files.
+## The cache map (verbatim facts)
 
-## Hard safety rules (from .claude/rules/firebase-data-safety.md)
+| What you edited | Firestore path | Cache tag | TTL | Source |
+|---|---|---|---|---|
+| Tenant config (brand, theme, landing, nav text, feature flags) | `tenants/{tenantId}` | `tenant-config` | **3600s (1h)** | `tenantConfig.server.ts:128` |
+| Event list (landing status) | `events` (by tenantId) | `events`, `events-all` | 60s | `eventService.server.ts:7` |
+| Event detail | `events/{eventId}` | `events`, `event-${eventId}` | **86400s (24h)** | `eventService.server.ts:8` |
 
-1. **Every Firestore write/update/delete from Claude Code MUST be confirmed by the user first.** State collection, doc path, operation, doc count; show the exact command; wait for explicit y/n.
-2. **Never hand-edit PROD config without the same change tested on DEV first.** Edit dev, verify in the dev app, then re-run against prod.
-3. **Tenant scoping:** never query or mutate tenant-scoped data (`events`, `invoices`, `notifications`, `audit_logs`, `integrations`, and all `events/{eventId}/` subcollections) without a `tenantId` filter. Prefix tenant-scoped scripts: `TENANT_ID=vpc node scripts/my-script.mjs <eventId>`. Global collections (`users`, `global_settings`, `counters`, `system_config`) need no TENANT_ID.
-4. **No per-tenant if/else in code** — config lives in Firestore (`tenant.brand`, `tenant.landing.type`, `event.brand.*`), never hardcoded.
-5. **Bulk ops (>10 docs): dry-run count first.** Batch writes >100 docs always dry-run. Never `deleteDoc`/`deleteCollection` on prod, never touch `users/` cross-tenant, unless the user explicitly asks.
-6. **Backup before destructive ops:** clone the affected event to dev (`clone_event_to_dev.ts`) before any script that clears-and-reseeds (e.g. the category reseed in `seed_fpt_hssv_dev_config.ts` deletes all existing categories first).
+Event detail is cached **24 hours** — after editing an event doc directly you almost always
+need the bust; 60s list TTL is short but detail is not.
 
-## Safe edit workflow
+## Bust the cache
 
-1. **Read current state** (reading event config / public fields needs no confirmation; sensitive collections do).
-2. **Write or reuse a seed script** targeting DEV. Follow the existing pattern: load env via dotenv, import `adminDb` from `../src/lib/firebase/admin`, print the target project (`🚀 TARGET: ...`) before writing.
-3. **Run against DEV, verify in the dev app**, then run the same script against PROD with user confirmation.
-4. Use `{ merge: true }` for additive config edits; `{ merge: false }` only when a full overwrite is intended (that is what the sync/clone scripts use).
+`GET /api/revalidate` — **admin-only** (event admin or above). It revalidates a fixed set of
+tags (`tenant-config`, `events`, `tournament_groups`, `events-all`, `schedules`, `venues`,
+`global-venues`) plus the home and `[eventId]` paths. Defined at
+`src/app/api/revalidate/route.ts`, gated by `verifyAnyAdmin()` in
+`src/lib/firebase/serverAuth.ts`.
 
-## Script commands (exact)
+It requires `Authorization: Bearer <Firebase ID token>`. A bare `curl` gets **401**, and so
+does **opening the URL in a browser** — address-bar navigation cannot send an `Authorization`
+header, and Firebase ID tokens live in IndexedDB, not cookies. There is no session-cookie
+fallback and no secret bypass.
 
-**Seed platform config (system_config):**
-```bash
-node scripts/seed-pvna-config.mjs                       # from PVNA_PARTNER_* env vars
-node scripts/seed-pvna-config.mjs --partner-id=sporttora --api-key=pk_... --api-secret=sk_...
-```
-Writes `system_config/pvna` with merge. Requires FIREBASE_PROJECT_ID / FIREBASE_CLIENT_EMAIL / FIREBASE_PRIVATE_KEY; no TENANT_ID (global collection).
+**The only practical way to bust manually:**
 
-**Seed event config (note the asymmetric env defaults — check before running):**
-```bash
-npx tsx scripts/seed_fpt_hssv_dev_config.ts             # defaults to DEV; --prod targets prod
-npx tsx scripts/seed_fpt_hssv_delegation_config.ts      # defaults to PROD; --dev targets dev
-```
-`seed_fpt_hssv_dev_config.ts` updates `events/fpt-hssv-2026` (full config incl. `delegationConfig`, `infoSections`, `prizeStructure`) and DELETES + reseeds all `categories` docs. `seed_fpt_hssv_delegation_config.ts` only sets `delegationConfig` (blocks `thcs`/`thpt`/`cd-dh`, quota, medal scoring).
-
-**Sync config PROD → DEV (dry-run by default):**
-```bash
-node scripts/sync-broadcast-config-to-dev.mjs           # dry-run: prints masked config + plan
-node scripts/sync-broadcast-config-to-dev.mjs --write   # copies system_config/broadcast to DEV (merge:false), sets events/tbe-newbie-2026 → TOURNAMENT_READY
-```
-Model new sync scripts on this: prod app read-only, dev app write target, secrets masked in output, explicit `--write` gate.
-
-**Clone data PROD → DEV:**
-```bash
-npx tsx scripts/clone_firestore.ts                                        # ALL root collections, recursive, merge:false overwrite of DEV
-npx tsx scripts/clone_event_to_dev.ts [eventId]                           # one event + subcollections + tenant doc (default fpt-hssv-2026)
-npx tsx scripts/clone-event-prod-to-dev.ts <eventId> [--target-tenant <tenantId>]  # needs pickleball-tour-{prod,dev}-firebase-adminsdk-*.json in root
-```
-`clone_firestore.ts` is a full overwrite of DEV — confirm before running; never point it at prod as destination.
-
-## Deploying firestore.rules
-
-`firebase deploy` (and `--only firestore:rules|firestore:indexes|storage`) is BLOCKED in settings.json. Use the Admin SDK deployer instead — and never auto-deploy:
+> Admin settings → **Information** tab → **"Làm mới trang công khai"** button
+> (`/[eventId]/admin/settings?tab=information`, next to Save).
 
 ```bash
-node scripts/deploy-firestore-rules.mjs dev    # test rules changes on dev first
-node scripts/deploy-firestore-rules.mjs prod   # only after dev verification + explicit user "deploy" confirmation
+# Scripted, only if you already hold an admin ID token:
+curl -s -H "Authorization: Bearer $ID_TOKEN" https://<tenant-domain>/api/revalidate
 ```
 
-Before deploying: show the `firestore.rules` diff, explain which collections/queries are affected and what could break, wait for explicit confirmation. The script reads credentials from `.env.development` / `.env.production` and releases via `releaseFirestoreRulesetFromSource` (equivalent to `firebase deploy --only firestore:rules`).
+**Claude cannot call this endpoint** — it has no admin ID token. After a direct Firestore
+config edit, tell the user to click that button; do not report the change as visible until
+they confirm the bust.
 
-## Verify after any config change
+Note it takes **no params** — it busts the whole tag set, not one doc. There is no way to
+bust a single event via this endpoint; that's fine, it's cheap.
 
-- Print the target project ID before writing; re-read the doc after writing and echo key fields (mask secrets: show first/last 4 chars only, as `sync-broadcast-config-to-dev.mjs` does).
-- For theming config, confirm `tenant.landing.type` is one of: `arena`, `federation`, `club-house`, `retreat`, `flex-league`, `portal`.
-- For event status changes, use the canonical statuses (`DRAFT`, `PUBLISHED`, `REGISTRATION_OPEN`, `REGISTRATION_CLOSED`, `LIVE`, `COMPLETED`, `CANCELLED`, plus operational ones like `TOURNAMENT_READY`).
+## Procedure for a direct config edit
+
+1. **Confirm target project** first: `firebase_get_environment` (dev vs prod). Editing prod
+   tenant config is a prod write.
+2. **State the change and get user confirmation** (firebase-data-safety cardinal rule):
+   collection, doc path, field, old→new value, which tenant, dev or prod.
+3. Apply the write (MCP `firestore_update_document` or console).
+4. **Ask the user to click** admin settings → Information → "Làm mới trang công khai".
+   The endpoint is admin-gated and Claude cannot call it; a browser URL will 401.
+5. **Verify** the rendered page reflects the change (e.g. new `themeClass` in body class,
+   nav text visible). If it doesn't within a few seconds, re-run the bust; do not assume.
+
+## Rules that still apply
+
+- `tenantId` is **immutable** — never mutate it on an existing doc (AGENTS.md rule 6).
+- No tenant-specific `if (tenantId === …)` branches — config drives behavior (rule 14). If
+  you're editing config to change behavior, that's correct; adding a code branch is not.
+- `tenantSecrets/{tenantId}` and `system_config/*` are **server-only** (firestore.rules
+  denies clients) — don't expose their values in client-readable config.
+- Prefer the admin UI route when one exists (it busts cache automatically):
+  `POST /api/admin/tenant` and `POST /api/admin/events/[eventId]` already call the right
+  `revalidateTag`. Direct edits are for fields those routes don't cover.

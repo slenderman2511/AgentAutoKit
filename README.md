@@ -41,7 +41,7 @@ The moving parts:
 | **Telemetry & tuning** | Per-model speed/cost + fit scoring that feeds routing back into itself | `scripts/` + `SubagentStop` hook |
 | **Status line** | Live view of which agents are running (agent-panel rows + bottom bar) | `scripts/*statusline.sh` + `subagentStatusLine`/`statusLine` |
 | **Commands** | `/init-kit` (entry), `/kit-stats` (scorecard), `/kit-tune` (re-allocate) | `commands/` · `template/.claude/commands/` |
-| **Skills** | 14 auto-loaded skills: framework best practices + domain workflows | `skills/` · `template/.claude/skills/` |
+| **Skills** | 31 auto-loaded skills: workflow skills from the reference project, framework best practices, domain workflows | `skills/` · `template/.claude/skills/` |
 | **Companion plugins** | 10 plugins declared for the whole team via `enabledPlugins` | `template/.claude/settings.json` |
 | **Installer** | Idempotent merge-aware `init.sh` — installs, upgrades, never clobbers | `scripts/init.sh` |
 
@@ -160,9 +160,13 @@ Hooks are the kit's enforcement layer — CLAUDE.md only reminds; hooks make rul
 - Fit scored per (agent, tier) so promotions are evaluated on fresh evidence; demotion is opt-in and requires a real escalation signal.
 - Auto-tune edits one reversible `model:` frontmatter line, dry-run by default, human-reviewed diff.
 
-### The 14 skills (details [below](#bundled-skills--companion-plugins))
+### The 31 skills (details [below](#bundled-skills--companion-plugins))
 
-`frontend-design` · `responsive-design` (+4 refs) · `accessibility` (+4 refs) · `next-best-practices` (+20 refs) · `playwright-best-practices` (~60 refs) · `e2e-flow` · `worktree-dev` · `roster-import` · `firestore-config-edit` · `firebase-best-practices` (+8 refs) · `payment-integration` (+6 refs) · `git-workflow` (+5 refs) · `i18n-best-practices` (+6 refs) · `conventions` — auto-loaded by Claude when the task matches their triggers.
+- **Workflow (9):** `worktree-dev` · `git-workflow` · `context-checkpoint` · `ui-prototype` · `ui-verify` · `github-issue-flow` · `add-bug-to-github` · `fix-from-github` · `conventions`
+- **Best practices (19):** `frontend-design` · `hallmark` · `responsive-design` · `accessibility` · `seo` · `next-best-practices` · `react-best-practices` · `composition-patterns` · `typescript-advanced-types` · `tailwind-css-patterns` · `nodejs-best-practices` · `nodejs-backend-patterns` · `playwright-best-practices` · `firebase-best-practices` · `payment-integration` · `stripe-best-practices` · `upgrade-stripe` · `i18n-best-practices` · `archify`
+- **Domain (3, tournament apps on Firebase):** `roster-import` · `firestore-config-edit` · `e2e-flow`
+
+All auto-loaded by Claude when the task matches their triggers.
 
 ### The 10 companion plugins
 
@@ -454,24 +458,53 @@ The kit ships a set of skills (loaded automatically by Claude when relevant) and
 
 ### Skills (`skills/` · `template/.claude/skills/`)
 
+**Workflow skills** — ported from the reference project (pick-tour) and generalized. Project facts come from the template `CLAUDE.md` sections "Design system", "Source of truth", "Issue tracking" and "Git workflow".
+
 | Skill | What it covers | Origin |
 |-------|----------------|--------|
-| `frontend-design` | Distinctive, production-grade UI work — avoids generic "AI slop" aesthetics | Anthropic (see LICENSE.txt) |
-| `responsive-design` | Reusable cross-device layout correctness: mobile-first breakpoints, fluid grid/flex + container queries, responsive images & fluid type, touch targets & hover fallbacks, viewport/safe-area, horizontal-overflow fixes, verify across viewports (4 reference files) | kit |
-| `accessibility` | Reusable WCAG 2.2 AA correctness bar: semantic HTML & ARIA (name/role/value), keyboard operability & visible focus, focus management for modals/menus, live regions, color contrast & not-color-alone, zoom/reflow, target size, accessible forms & alt text, keyboard + screen-reader verification (4 reference files) | kit |
-| `next-best-practices` | Next.js App Router conventions: RSC boundaries, data patterns, metadata, error handling (+20 reference files) | Vercel-style reference |
-| `playwright-best-practices` | Full Playwright discipline: locators, flakiness, POM, CI/CD, auth, mocking (~60 reference files) | currents.dev, MIT |
-| `e2e-flow` | Running/authoring full user-journey Playwright specs (dev server, seeding, Stripe test checkout, bilingual selectors) | authored from pickleball-tour |
-| `worktree-dev` | Feature work in isolated git worktrees under `.claude/worktrees/` — deps, env, ports, merge-back, cleanup | authored from pickleball-tour |
-| `roster-import` | Safe XLSX → Firestore roster import pipeline: assess dups → dry-run → apply → verify → rollback | authored from pickleball-tour |
-| `firestore-config-edit` | Editing/seeding/syncing Firestore config + rules deploys, dev-first, with hard safety rules | authored from pickleball-tour |
-| `firebase-best-practices` | Reusable Firebase correctness bar: security rules, RBAC/role standardization, Auth hardening, index optimization, Cloud Functions, Realtime Database, Remote Config (8 reference files) | kit |
-| `payment-integration` | Reusable online-payment correctness bar across Stripe, Apple Pay, Google Pay, 9Pay, SePay: server-authoritative amounts, webhook/IPN signature verification, idempotency, VietQR reconciliation (6 reference files) | kit |
-| `git-workflow` | Reusable Git discipline: fetch/pull/push sync, merge vs rebase, conflict resolution, and multi-agent parallelism with worktrees (5 reference files) | kit |
-| `i18n-best-practices` | Reusable multi-language (EN/VI +) correctness bar: adopt/retrofit i18n in a monolingual project, catch hardcoded strings, keep locale files in parity, ICU interpolation/plurals, locale-aware date/number/currency (VND) formatting, next-intl & react-i18next setup, add-a-locale checklist (6 reference files) | kit |
+| `worktree-dev` | Worktree-first setup under `.claude/worktrees/`: copying gitignored env files (the HTTP 500 symptom), deps, ports, sync, PR hand-off, cleanup | kit + pick-tour |
+| `git-workflow` | Git discipline: sync, merge vs rebase, conflict resolution, multi-agent worktrees (5 reference files) | kit |
+| `context-checkpoint` | Keep long sessions healthy: persist plan/SOT/rules, then hand the user `/compact` or `/clear` + a resume prompt — never mid-task | pick-tour |
+| `ui-prototype` | Throwaway UX prototype (one HTML file, real design tokens, state machine) published as an Artifact or gist and linked into the issue as the behavior spec — Epic Flow step 2 | pick-tour |
+| `ui-verify` | Post-implementation UI check: static token rules → computed WCAG contrast per theme → live Playwright at 375/768/1280 | pick-tour |
+| `github-issue-flow` | Change request → labeled issue before code → branch/PR linked → manual close after merge when PRs base a non-default branch | pick-tour |
+| `add-bug-to-github` | File a known bug into the `ai` work queue with kind/severity labels, after de-duplication | pick-tour |
+| `fix-from-github` | Drain the `ai` queue: claim lock, investigate, per-ticket plan gate, fix through the pipeline, draft PR — never merge | pick-tour |
 | `conventions` | The kit's own coding conventions | kit |
 
-`roster-import` and `firestore-config-edit` are domain-specific (tournament apps on Firebase); delete their folders from projects where they don't apply.
+**Best-practice skills** — third-party skills are vendored unmodified with their upstream `LICENSE` and a `SOURCE.md`; refresh them from upstream rather than editing them here.
+
+| Skill | What it covers | Origin |
+|-------|----------------|--------|
+| `frontend-design` | Distinctive, production-grade UI work — avoids generic "AI slop" aesthetics | anthropics/skills (see LICENSE.txt) |
+| `hallmark` | Anti-AI-slop design for greenfield pages, audits, redesigns, design extraction (~100 reference files) | nutlope/hallmark, MIT |
+| `responsive-design` | Cross-device layout correctness: breakpoints, fluid layout, responsive media, touch targets, overflow (4 reference files) | kit |
+| `accessibility` | WCAG 2.2 AA bar: semantics & ARIA, keyboard & focus, contrast, zoom/reflow, forms, verification (4 reference files) | kit |
+| `seo` | Meta tags, structured data, sitemaps, search visibility | addyosmani/web-quality-skills, MIT |
+| `next-best-practices` | Next.js App Router conventions (+20 reference files). On Next.js 16.3+ prefer the docs bundled with Next itself | vercel-labs/next-skills (deprecated upstream) |
+| `react-best-practices` | React/Next.js performance rules from Vercel Engineering (~70 rules) | vercel-labs/agent-skills, MIT |
+| `composition-patterns` | React composition: compound components, avoiding boolean-prop sprawl, React 19 APIs | vercel-labs/agent-skills, MIT |
+| `typescript-advanced-types` | Generics, conditional/mapped/template-literal types, utility types | wshobson/agents, MIT |
+| `tailwind-css-patterns` | Tailwind utility patterns: layout, responsive, typography, theming | giuseppe-trisciuoglio/developer-kit, MIT |
+| `nodejs-best-practices` | Node.js decision-making: framework choice, async, security, architecture | sickn33/antigravity-awesome-skills, MIT |
+| `nodejs-backend-patterns` | Express/Fastify services: middleware, errors, auth, data access | wshobson/agents, MIT |
+| `playwright-best-practices` | Playwright discipline: locators, flakiness, POM, CI/CD, auth, mocking (~60 reference files) | currents.dev, MIT |
+| `firebase-best-practices` | Firebase bar: security rules, RBAC, Auth, indexes, Functions, RTDB, Remote Config (8 reference files) | kit |
+| `payment-integration` | Payments across Stripe, Apple/Google Pay, 9Pay, SePay: server amounts, webhook verification, idempotency, VietQR (6 reference files) | kit |
+| `stripe-best-practices` | Stripe integration choices and API usage | stripe/ai, MIT |
+| `upgrade-stripe` | Upgrading Stripe API versions and SDKs | stripe/ai, MIT |
+| `i18n-best-practices` | Multi-language (EN/VI +) bar: adoption, hardcoded strings, locale parity, ICU, locale formatting (6 reference files) | kit |
+| `archify` | System description or Mermaid → validated standalone-HTML diagrams (architecture, sequence, data-flow, state) | tt-a1i/archify, MIT |
+
+Not bundled: `next-cache-components` and `next-upgrade` — their upstream (`vercel-labs/next-skills`) has no license to redistribute and has moved. Install Cache Components workflow skills with `npx skills add vercel/next.js`; upgrade with `npx @next/codemod@latest upgrade`.
+
+**Domain skills** — from the reference project, refreshed verbatim; they are specific to tournament apps on Firebase, so delete them where they don't apply.
+
+| Skill | What it covers | Origin |
+|-------|----------------|--------|
+| `roster-import` | XLSX roster → Firestore event entries: seeding rules, entry shapes, doubles pairing, dry-run, confirm-before-write | pick-tour |
+| `firestore-config-edit` | Edit tenant/event config in Firestore and bust the app cache | pick-tour |
+| `e2e-flow` | Full user-journey Playwright specs (dev server, seeding, Stripe test checkout, bilingual selectors) | authored from pick-tour |
 
 ### Companion plugins (declared in the template's `settings.json`)
 
