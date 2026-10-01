@@ -66,11 +66,11 @@ Drawn with the bundled `archify` skill. Each image follows your GitHub light/dar
   <img alt="Workflow across three lanes: the main session sizes the task and plans; specialist agents scout, review the spec, implement and test; the escalation and review-gate lane holds deep-debugger and the code-reviewer and security-auditor gate before the PR to dev" src="docs/diagrams/workflow.light.png">
 </picture>
 
-**3 · Measure → score → re-tier** — hooks and the orchestrator write `events.jsonl`; `/kit-stats` turns it into a scorecard priced by tier; `/kit-tune --apply` promotes an under-fit agent one tier in its frontmatter, as a diff a human reviews.
+**3 · Measure → score → re-tier** — hooks write one `events.jsonl` in the main checkout; `/kit-stats` turns it into a scorecard priced by tier, deriving escalations and review rounds from run order; `/kit-tune --apply` promotes an under-fit agent one tier in its frontmatter, as a diff a human reviews.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/diagrams/telemetry.dark.png">
-  <img alt="Data flow: SubagentStop hook, Stop hook and orchestrator write events.jsonl; /kit-stats aggregates it with pricing.json into a scorecard; /kit-tune promotes an agent tier in its frontmatter" src="docs/diagrams/telemetry.light.png">
+  <img alt="Data flow: SubagentStop, Stop and PostToolUse hooks write events.jsonl in the main checkout; /kit-stats aggregates it with pricing.json into a scorecard; /kit-tune promotes an agent tier in its frontmatter" src="docs/diagrams/telemetry.light.png">
 </picture>
 
 ## Install & use
@@ -166,7 +166,7 @@ Every agent reads `CLAUDE.md` + `.claude/rules/` for project conventions and ret
 | Command | What it does |
 |---------|--------------|
 | `/init-kit <task>` | Entry point — kicks off the coordinated think → size (S/M/L) → implement → debug → test → review pipeline. |
-| `/kit-stats` | Aggregates telemetry into a scorecard: per-model p50/p95 duration + cost (incl. cache tokens), per-(agent, tier) fit score, pipeline health. |
+| `/kit-stats` | Aggregates telemetry into a scorecard: per-model p50/p95 duration + cost (incl. cache tokens), per-(agent, tier) fit score with off-pin runs flagged, pipeline health (verify pass rate, review rounds per PR, PRs opened without review). |
 | `/kit-tune [--apply]` | Proposes (dry-run) or applies model-tier promotions/demotions from measured fit, guarded by `min_samples`. |
 
 ### The guardrail hooks (4)
@@ -174,15 +174,16 @@ Every agent reads `CLAUDE.md` + `.claude/rules/` for project conventions and ret
 | Hook | Event | Enforcement |
 |------|-------|-------------|
 | `protect-files.sh` | `PreToolUse` (Edit/Write/MultiEdit) | Blocks edits to `.env*`, secrets, keys, CI workflows, migrations. |
-| `review-gate.sh` | `PreToolUse` (Bash) | Non-blocking: when the command contains `gh pr create`, injects the mandatory review-gate checklist as additional context. Ported from pick-tour. |
+| `review-gate.sh` | `PreToolUse` + `PostToolUse` (Bash) | Non-blocking: before `gh pr create`, injects the mandatory review-gate checklist as additional context (ported from pick-tour); after it, logs a `pr` event when the output carries the new PR's URL, so `/kit-stats` can count review rounds per PR. |
 | `verify.sh` | `Stop` | Runs `tsc --noEmit` only if `tsconfig.json` exists, and Vitest only if `package.json` lists it — as `vitest related --run` on changed + untracked source files (the full suite is CI's job). A docs-only change skips cleanly. Blocks finishing on failure; a failed run records the failing step + last 20 output lines. 300s timeout. |
-| `metrics-subagent.sh` | `SubagentStop` | Measures every subagent run (tokens incl. cache, duration per sidechain), tagged with its agent name from `agent_type`, into `events.jsonl`. Never blocks. |
+| `metrics-subagent.sh` | `SubagentStop` | Measures every subagent run (tokens incl. cache, duration per sidechain), tagged with its agent name from `agent_type`, into the main checkout's `events.jsonl`. Never blocks. |
 
 Hooks are the kit's enforcement layer — CLAUDE.md only reminds; hooks make rules stick. The bundled **hookify** plugin authors new ones conversationally.
 
 ### Telemetry & self-tuning (details [below](#self-tuning-measure--score--re-allocate))
 
-- Two-sided measurement: hard numbers from transcripts (speed/tokens/cost, tagged per agent + model tier) + pipeline proxies the orchestrator logs deliberately (escalations, review rounds; verify pass rate comes from the `Stop` hook).
+- Two-sided measurement: hard numbers from transcripts (speed/tokens/cost, tagged per agent + model tier) + pipeline proxies derived from the order of runs (escalation = `implementer` followed by `deep-debugger`; review rounds = `code-reviewer` runs before each opened PR; verify pass rate comes from the `Stop` hook).
+- One event log per repo: every worktree writes to the main checkout's `.claude/metrics/`, so removing a worktree after its PR merges keeps its data.
 - Fit scored per (agent, tier) so promotions are evaluated on fresh evidence; demotion is opt-in and requires a real escalation signal.
 - Auto-tune edits one reversible `model:` frontmatter line, dry-run by default, human-reviewed diff.
 
@@ -439,7 +440,7 @@ sequenceDiagram
 
 ## Guardrails
 
-Three hooks act as a safety net regardless of what any agent decides — two block, one reminds. (A fourth, `metrics-subagent.sh`, is telemetry-only; see [Self-tuning](#self-tuning-measure--score--re-allocate).)
+Three hooks act as a safety net regardless of what any agent decides — two block, one reminds. (A fourth, `metrics-subagent.sh`, is telemetry-only, and `review-gate.sh` also logs each opened PR; see [Self-tuning](#self-tuning-measure--score--re-allocate).)
 
 ```mermaid
 flowchart LR
@@ -467,7 +468,7 @@ flowchart LR
 ```
 
 - **`protect-files.sh`** (PreToolUse on `Edit|Write|MultiEdit`) — blocks writes to `.env*`, `*.pem`, `*.key`, `secrets/`, `.github/workflows/`, and `migrations/` (matched whether the path is absolute or root-relative). Exits `2`, and its stderr is fed back to the agent so it knows *why* it was blocked.
-- **`review-gate.sh`** (PreToolUse on `Bash`) — when a command contains `gh pr create`, injects the mandatory review-gate checklist as additional context. Non-blocking: it reminds, the agent still decides. Ported from pick-tour, the kit's reference project.
+- **`review-gate.sh`** (PreToolUse on `Bash`) — when a command contains `gh pr create`, injects the mandatory review-gate checklist as additional context. Non-blocking: it reminds, the agent still decides. Ported from pick-tour, the kit's reference project. The same script on `PostToolUse` logs the opened PR (telemetry only).
 - **`verify.sh`** (Stop) — before an agent is allowed to finish, runs `tsc --noEmit` (only if `tsconfig.json` exists), then, if `package.json` lists Vitest, `vitest related --run` on changed + untracked source files (the full suite is CI's job). A docs-only change skips cleanly. On failure it emits a `block` decision with the tail of the output, forcing a fix before completion, and records the failing step + last 20 output lines to the verify telemetry event. 300s timeout; guards against infinite Stop-hook loops.
 
 Complementing the hooks, the template's `settings.json` sets **permission** policy:
@@ -551,10 +552,11 @@ flowchart LR
     direction TB
     OR["orchestrator routes"] --> SUB["subagents do the work"]
   end
-  SUB -->|"SubagentStop hook<br/>metrics-subagent.sh"| EV["events.jsonl<br/>speed + tokens, tagged per agent + model"]
-  OR -->|"kit-record.sh<br/>escalation / review"| EV
+  SUB -->|"SubagentStop hook<br/>metrics-subagent.sh"| EV["events.jsonl (main checkout)<br/>speed + tokens, tagged per agent + model"]
+  PRH["review-gate.sh · PostToolUse"] -->|"PR opened (URL)"| EV
   VER["verify.sh · Stop hook"] -->|"pass / fail"| EV
-  EV -->|"/kit-stats"| SC["scorecard.json + .md<br/>fit score + cost per (agent, tier)"]
+  OR -.->|"kit-record.sh (optional)<br/>escalation / review"| EV
+  EV -->|"/kit-stats<br/>derives escalations + review rounds"| SC["scorecard.json + .md<br/>fit score + cost per (agent, tier)"]
   SC -->|"/kit-tune --apply<br/>only if ≥ min_samples"| FM["agent frontmatter<br/>model tier promoted / demoted"]
   FM -->|"next run"| OR
   SC -.->|"read at start of run"| OR
@@ -567,14 +569,16 @@ Two halves, deliberately kept separate because they differ in how measurable the
 | Signal | Source | Reliability |
 |--------|--------|-------------|
 | **Speed & token cost per model** | `SubagentStop` hook reads `agent_transcript_path` (each subagent's own transcript; falls back to `transcript_path` on older Claude Code) and tags each record with `agent` from `agent_type` (plugin namespace stripped) | Directly measured |
-| **"Fit" per (agent, tier)** | Agent-tagged subagent records give the run count per tier; pipeline **proxies** the orchestrator logs deliberately (escalation to `deep-debugger`, review rounds) give the outcome | Proxy — correlates with quality, not ground truth |
+| **"Fit" per (agent, tier)** | Agent-tagged subagent records give the run count per tier; the outcome **proxy** is derived from run order — an `implementer` run escalated when `deep-debugger` runs after it, before the next `implementer` run in the same session. Escalations the orchestrator logs with `kit-record.sh` replace the derived ones for that session | Proxy — correlates with quality, not ground truth |
+| **Review rounds per PR** | `review-gate.sh` logs a `pr` event once `gh pr create` prints the new PR's URL (each URL counted once); the rounds are the `code-reviewer` runs since the previous PR of the session. A PR with none is reported as opened without review | Proxy |
+| **Off-pin runs** | A run whose model tier differs from the agent's frontmatter pin — the caller passed `model` to the Agent tool, which overrides the pin | Directly measured |
 
-There is no automatic quality oracle, so "fit" is defined as objective pipeline outcomes. For v1: `fit_score = 1 − escalation_rate` (an agent that keeps needing escalation is under-powered for its tasks). Fit is computed **per (agent, tier)** — the agent-tagged subagent records and escalation events record which tier the agent was on — so after a promotion the new tier starts with a clean score instead of inheriting the failures that caused the promotion. The orchestrator no longer logs a route event per delegation; `kit-stats` derives per-agent run counts from the tagged `subagent` records instead.
+There is no automatic quality oracle, so "fit" is defined as objective pipeline outcomes. For v1: `fit_score = 1 − escalation_rate` (an agent that keeps needing escalation is under-powered for its tasks). Fit is computed **per (agent, tier)** — the agent-tagged subagent records and escalation events record which tier the agent was on — so after a promotion the new tier starts with a clean score instead of inheriting the failures that caused the promotion. The orchestrator no longer logs a route event per delegation; `kit-stats` derives per-agent run counts from the tagged `subagent` records instead. Only the kit's agents (its own plus the project's `.claude/agents/`) get a fit row; other subagents such as `Explore` still count toward per-model cost.
 
 ### The three commands / files
 
-- **Telemetry** lands in `.claude/metrics/events.jsonl` (git-ignored). Written by the `SubagentStop` hook (speed/cost, tagged per agent), `verify.sh` (pass/fail, plus the failing step + tail on a red run), and `kit-record.sh` (escalation/review outcomes, called by the orchestrator).
-- **`/kit-stats`** → aggregates events into `.claude/metrics/scorecard.{json,md}`: per-model p50/p95 duration + estimated cost (including cache read/write tokens, which dominate real Claude Code usage), per-(agent, tier) fit score, and pipeline health (verify first-pass rate, avg review rounds).
+- **Telemetry** lands in `.claude/metrics/events.jsonl` (git-ignored) of the repo's **main checkout**, even when the session runs in a linked worktree — so every worktree feeds one log and a removed worktree takes nothing with it. Written by the `SubagentStop` hook (speed/cost, tagged per agent), `verify.sh` (pass/fail, plus the failing step + tail on a red run), `review-gate.sh` (opened PRs), and optionally `kit-record.sh` (escalation/review outcomes logged by the orchestrator).
+- **`/kit-stats`** → aggregates events into `.claude/metrics/scorecard.{json,md}`: per-model p50/p95 duration + estimated cost (including cache read/write tokens, which dominate real Claude Code usage), per-(agent, tier) fit score with off-pin runs flagged, and pipeline health (verify first-pass rate, avg review rounds per reviewed PR, PRs opened without a `code-reviewer` run).
 - **`/kit-tune`** → reads the scorecard and, **only past a sample threshold**, moves an agent along the ladder `haiku → claude-sonnet-5-5 → claude-opus-5-5`. Dry-run by default; `--apply` edits the `model:` frontmatter line (writing the pinned ID) and logs the decision to `tuning-log.md`. The edit is a normal diff a human reviews before committing.
 
 ### Tuning thresholds
@@ -595,9 +599,9 @@ Token prices for the cost estimate live in `.claude/metrics/pricing.json` — se
 
 `cache_read`/`cache_write` default to 0.1× / 1.25× of `in` when omitted. The built-in defaults are Haiku 4.5 / Sonnet 5.5 / Opus 5.5 list prices; Opus 5.5 cache reads are 0.05× of `in` ($0.20), so set `cache_read` explicitly if you override its price.
 
-> **Honest limits:** the transcript format is internal and may change between Claude Code versions, so the parser is defensive and best-effort. Proxies correlate with quality but are not a substitute for it. Small samples are noisy — that is what `min_samples` guards against. Full auto-tune is scoped to a single reversible frontmatter edit, never anything destructive.
+> **Honest limits:** the transcript format is internal and may change between Claude Code versions, so the parser is defensive and best-effort. Proxies correlate with quality but are not a substitute for it; the derived ones read run order within a session, so a deep-debugger run about something else still counts as an escalation, and a PR opened from another session than its review shows as unreviewed. Small samples are noisy — that is what `min_samples` guards against. Full auto-tune is scoped to a single reversible frontmatter edit, never anything destructive.
 
-> Full metrics only ships with the **template** install (it carries `scripts/`). A plugin-only install still gets the `SubagentStop` speed/cost telemetry, but add the `scripts/` + commands to your project for the scorecard and auto-tune.
+> Both installs run the full loop: the plugin calls its scripts from `${CLAUDE_PLUGIN_ROOT}/scripts/`, the template from `.claude/scripts/`. Only the optional `kit-record.sh` logging assumes the template path.
 
 ---
 
@@ -621,7 +625,7 @@ Claude Code passes a `tasks[]` array (id, name, model, `tokenCount`, `contextWin
 ▸ Opus  agentautokit  ⎇ main  🤖 code-scout · implementer×2
 ```
 
-- Script: `scripts/statusline.sh`. It detects active agents by diffing `Task` tool-use ids against completed `tool_result` ids in the transcript, and reuses the same transcript the metrics hook reads.
+- Script: `scripts/statusline.sh`. It detects active agents by diffing `Agent` tool-use ids (`Task` on older Claude Code) against completed `tool_result` ids in the transcript.
 - Set with `refreshInterval: 2` so it keeps updating **while a subagent runs** — the bottom bar is otherwise event-driven (it would only refresh when the main agent next speaks).
 - Shows `·idle·` when nothing is delegating.
 

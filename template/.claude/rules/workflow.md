@@ -114,6 +114,9 @@ models absorb the token load. Fable is NEVER assigned to a subagent.
    summarize the blocker for the human. A PreToolUse hook reminds you at `gh pr create` — treat it as
    a stop, not noise.
 6. **Subagents return concise summaries** — do not ask them for full file dumps.
+7. **Never pass `model` to the Agent tool.** It overrides the agent's pinned tier for that run, so
+   an `implementer` call silently costs opus prices. Pick a different agent instead; `/kit-stats`
+   flags overridden runs as off-pin.
 
 ### Main-session model policy
 

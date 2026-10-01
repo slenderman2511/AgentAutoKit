@@ -9,6 +9,8 @@ INPUT=$(cat)
 [ "$(echo "$INPUT" | jq -r '.stop_hook_active')" = "true" ] && exit 0
 
 ROOT="${CLAUDE_PROJECT_DIR:-$(pwd)}"
+# Resolve the metrics lib before cd, in case the hook was invoked by a relative path.
+LIB="$(cd "$(dirname "$0")" && pwd)/../scripts/kit-metrics-lib.sh"
 cd "$ROOT" || exit 0
 
 # Skip gracefully if no package.json (nothing to verify).
@@ -52,8 +54,10 @@ if [ $STATUS -eq 0 ] && grep -q '"vitest"' package.json; then
 fi
 
 # Telemetry: record whether the change cleared the verify gate (a fit proxy),
-# plus which step failed and the last lines of its output.
-MDIR="$ROOT/.claude/metrics"
+# plus which step failed and the last lines of its output. Written to the main
+# checkout's metrics dir, so a verify run inside a worktree outlives it.
+if [ -f "$LIB" ]; then . "$LIB"; MDIR=$(kit_metrics_dir)
+else MDIR="$ROOT/.claude/metrics"; fi
 if mkdir -p "$MDIR" 2>/dev/null; then
   PASS=$([ $STATUS -eq 0 ] && echo true || echo false)
   TAIL=$([ $STATUS -eq 0 ] && echo "" || echo "$OUTPUT" | tail -20)
