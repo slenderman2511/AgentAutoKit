@@ -29,9 +29,11 @@ kit_append_event() {
 }
 
 # The model: line of an agent file, read from its frontmatter block only.
+# A file that does not open with "---" has no frontmatter: no model.
 kit_agent_model() {
   [ -f "$1" ] || { echo ""; return; }
-  sed -n '1,/^---$/{s/^model:[[:space:]]*//p;}' "$1" | head -1 | tr -d '\r'
+  sed -n -e '1{/^---[[:space:]]*$/!q;}' -e '1,/^---$/{s/^model:[[:space:]]*//p;}' "$1" \
+    | head -1 | tr -d '\r'
 }
 
 # Ordinal rank of a model tier, for ladder comparisons. Accepts aliases or pinned ids.

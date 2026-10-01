@@ -48,7 +48,7 @@ for d in "$(dirname "$0")/../agents" "$ROOT/.claude/agents"; do
 done
 
 JSON=$(jq -c -s --argjson rates "$RATES" --argjson pins "$PINS" '
-  def pct(p): if length==0 then 0 else (sort as $s | $s[ ((length-1)*p) | floor ]) end;
+  def pct(p): if length==0 then null else (sort as $s | $s[ ((length-1)*p) | floor ]) end;
   def tier: if test("haiku") then "haiku" elif test("sonnet") then "sonnet" elif test("opus") then "opus" else "other" end;
   def kit_agent: ($pins | length) == 0 or $pins[.] != null;
   def not_in($sessions): .session as $s | $sessions | index($s) | not;
@@ -98,7 +98,8 @@ JSON=$(jq -c -s --argjson rates "$RATES" --argjson pins "$PINS" '
   # from review-gate.sh, first one per URL) are the code-reviewer runs since
   # the previous PR of the same session; 0 means it was opened without one.
   | (reduce ($ev[] | select(.kind=="pr")) as $p ({seen: {}, list: []};
-       if .seen[$p.url // ""] then . else .seen[$p.url // ""] = true | .list += [$p] end)
+       ($p.url // "\($p.session) \($p.ts)") as $k
+       | if .seen[$k] then . else .seen[$k] = true | .list += [$p] end)
      | .list) as $pr_first
   | ([ [ ($ev[] | select(.kind=="subagent" and .agent=="code-reviewer")), $pr_first[]
        | select(not_in($rev_sessions)) ]
@@ -110,7 +111,9 @@ JSON=$(jq -c -s --argjson rates "$RATES" --argjson pins "$PINS" '
            else {n: (.n + 1), out: null} end;
            .out | select(. != null))
      ]) as $prs
-  | ([ $rev_logged[] | .rounds ] + [ $prs[] | select(.rounds > 0) | .rounds ]) as $rounds
+  # Average over reviewed PRs only; unreviewed ones are counted separately.
+  | ([ $rev_logged[] | .rounds | numbers | select(. > 0) ]
+     + [ $prs[] | select(.rounds > 0) | .rounds ]) as $rounds
 
   | {
     generated_at: (now|todateiso8601),
@@ -123,7 +126,7 @@ JSON=$(jq -c -s --argjson rates "$RATES" --argjson pins "$PINS" '
         | (map(.tok_out // 0)     | add) as $to
         | (map(.cache_read // 0)  | add) as $cr
         | (map(.cache_write // 0) | add) as $cw
-        | (map(.duration_ms)) as $durs
+        | (map(.duration_ms | numbers)) as $durs   # older/partial records may lack it
         | {
             model: $m,
             records: length,
@@ -204,7 +207,7 @@ OFF_PIN=$(echo "$JSON" | jq -r '.agents[]
   echo
   echo "| Model | Runs | p50 dur (s) | p95 dur (s) | Tok in | Tok out | Cache read | Cache write | Est. cost (USD) |"
   echo "|-------|-----:|------------:|------------:|-------:|--------:|-----------:|------------:|----------------:|"
-  echo "$JSON" | jq -r '.models[] | "| \(.model) | \(.records) | \((.dur_p50_ms/1000*10|round)/10) | \((.dur_p95_ms/1000*10|round)/10) | \(.tok_in) | \(.tok_out) | \(.cache_read) | \(.cache_write) | \(.est_cost_usd) |"'
+  echo "$JSON" | jq -r '.models[] | "| \(.model) | \(.records) | \(if .dur_p50_ms == null then "n/a" else (.dur_p50_ms/1000*10|round)/10 end) | \(if .dur_p95_ms == null then "n/a" else (.dur_p95_ms/1000*10|round)/10 end) | \(.tok_in) | \(.tok_out) | \(.cache_read) | \(.cache_write) | \(.est_cost_usd) |"'
   echo
   echo "## Agents — fit score per tier (1.0 = never escalated)"
   echo
