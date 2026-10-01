@@ -19,12 +19,22 @@ kit_main_root() {
 
 kit_metrics_dir() { echo "$(kit_main_root)/.claude/metrics"; }
 
+# Create a metrics dir that git ignores from the inside. A plugin install writes
+# into projects whose .gitignore never heard of .claude/metrics/, and a
+# "stage everything" commit would otherwise sweep the log into the repo.
+# Usage: kit_ensure_dir <dir>   (returns non-zero if the dir cannot be created)
+kit_ensure_dir() {
+  mkdir -p "$1" 2>/dev/null || return 1
+  [ -f "$1/.gitignore" ] || printf '*\n' > "$1/.gitignore" 2>/dev/null
+  return 0
+}
+
 kit_events_file() { echo "$(kit_metrics_dir)/events.jsonl"; }
 
 # Append one JSON event line. Usage: kit_append_event '<json object string>'
 kit_append_event() {
   local dir; dir="$(kit_metrics_dir)"
-  mkdir -p "$dir"
+  kit_ensure_dir "$dir" || return 0
   printf '%s\n' "$1" >> "$dir/events.jsonl"
 }
 

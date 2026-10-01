@@ -20,9 +20,8 @@ AGENT=$(echo "$INPUT" | jq -r 'if .agent_transcript_path then (.agent_type // ""
 # Metrics dir: the main checkout's, shared by every worktree (see the lib).
 # The lib sits at ../scripts/ in both the plugin and the template layout.
 LIB="$(dirname "$0")/../scripts/kit-metrics-lib.sh"
-if [ -f "$LIB" ]; then . "$LIB"; MDIR=$(kit_metrics_dir)
-else MDIR="${CLAUDE_PROJECT_DIR:-$(pwd)}/.claude/metrics"; fi
-mkdir -p "$MDIR"
+if [ -f "$LIB" ]; then . "$LIB"; MDIR=$(kit_metrics_dir); kit_ensure_dir "$MDIR"
+else MDIR="${CLAUDE_PROJECT_DIR:-$(pwd)}/.claude/metrics"; mkdir -p "$MDIR"; fi
 
 # Parallel subagents fire this hook concurrently; serialize on a portable
 # mkdir lock so two runs can't read the same cursor and double-count.

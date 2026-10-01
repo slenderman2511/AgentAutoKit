@@ -56,7 +56,7 @@ fi
 # Telemetry: record whether the change cleared the verify gate (a fit proxy),
 # plus which step failed and the last lines of its output. Written to the main
 # checkout's metrics dir, so a verify run inside a worktree outlives it.
-if [ -f "$LIB" ]; then . "$LIB"; MDIR=$(kit_metrics_dir)
+if [ -f "$LIB" ]; then . "$LIB"; MDIR=$(kit_metrics_dir); kit_ensure_dir "$MDIR"
 else MDIR="$ROOT/.claude/metrics"; fi
 if mkdir -p "$MDIR" 2>/dev/null; then
   PASS=$([ $STATUS -eq 0 ] && echo true || echo false)
