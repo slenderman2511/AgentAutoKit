@@ -48,6 +48,16 @@ production and is where process improvements are proven first. When evolving the
   and `worktree-dev` (kit's generic version + pick-tour's env-file lesson) are kit-owned.
 - Skills live in both `skills/` and `template/.claude/skills/` — keep them identical.
 
+## Telemetry
+
+- Every writer resolves the metrics dir through `kit_metrics_dir` in `scripts/kit-metrics-lib.sh`:
+  the repo's MAIN checkout, never a worktree (worktrees are deleted after merge). Hooks source the
+  lib as `$(dirname "$0")/../scripts/`, which holds in both the plugin and the template layout.
+- Escalations and review rounds are derived in `kit-stats.sh` from run order; `kit-record.sh` is
+  optional. Before changing the transcript parser or a derived signal, replay real transcripts
+  (`~/.claude/projects/<proj>/<session>/subagents/agent-*.jsonl` + `.meta.json` for `agentType`)
+  through `hooks/metrics-subagent.sh` into a scratch git repo with a worktree.
+
 ## Models
 
 Agent tiers are pinned IDs: `claude-opus-5-5`, `claude-sonnet-5-5`, `haiku` (Haiku 4.5, no
@@ -61,7 +71,8 @@ embeds. After changing the architecture, workflow or telemetry loop, edit the sp
 requires `meta.output`, e.g. `docs/diagrams/<name>.html`), then from the repo root run
 `node skills/archify/bin/archify.mjs deliver <type> <spec> <out.html> --quality showcase` and
 `visual-check`. Keep only the 1440x900 light/dark PNGs, renamed `<name>.light|dark.png` and cropped
-above the notes cards; delete the `*.visual-check.*` and `*.delivery.json` sidecars.
+from the top to above the notes cards (PIL `crop((0, 0, 1440, 842))` — `sips` crops centered and
+cuts the title); delete the `*.visual-check.*` and `*.delivery.json` sidecars.
 
 Run archify (and any tool) from the repo root: the OMC plugin writes `.omc/` state into whatever
 directory is current, and `init.sh` copies every file under `template/.claude/` into projects.

@@ -45,10 +45,10 @@
       "row": 1
     },
     {
-      "id": "orch",
-      "type": "backend",
-      "label": "Orchestrator",
-      "sublabel": "kit-record.sh",
+      "id": "prhook",
+      "type": "security",
+      "label": "PostToolUse hook",
+      "sublabel": "review-gate.sh",
       "stage": 0,
       "row": 2
     },
@@ -56,7 +56,7 @@
       "id": "events",
       "type": "database",
       "label": "events.jsonl",
-      "sublabel": ".claude/metrics/",
+      "sublabel": "in the main checkout",
       "stage": 1,
       "row": 1
     },
@@ -117,10 +117,10 @@
       "variant": "default"
     },
     {
-      "from": "orch",
+      "from": "prhook",
       "to": "events",
-      "label": "escalation · review rounds",
-      "classification": "proxy",
+      "label": "PR opened · URL",
+      "classification": "review rounds",
       "variant": "dashed",
       "fromSide": "right",
       "toSide": "bottom",
@@ -136,7 +136,7 @@
       "from": "events",
       "to": "stats",
       "label": "aggregate",
-      "classification": "per model · per tier",
+      "classification": "+ derived proxies",
       "variant": "emphasis",
       "labelDy": 53
     },
@@ -170,7 +170,7 @@
       "title": "Measured",
       "items": [
         "Speed and tokens from each subagent's own transcript",
-        "Verify pass rate, with the failing step and output tail"
+        "Verify pass rate, opened PRs, off-pin runs"
       ]
     },
     {
@@ -178,7 +178,7 @@
       "title": "Proxy",
       "items": [
         "fit = 1 − escalation rate, per (agent, tier)",
-        "Only implementer has an escalation path today"
+        "Derived from run order: implementer → deep-debugger"
       ]
     },
     {

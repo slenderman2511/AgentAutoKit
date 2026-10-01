@@ -5031,7 +5031,7 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
         <!-- Flow paths -->
         <path data-edge-from="substop" data-edge-to="events" data-edge-label="agent · model · tokens" data-edge-key="0" data-composition-points="156,157;315,157;315,242" d="M 156 157 L 315 157 L 315 242" class="a-emphasis" stroke-width="1.8" marker-end="url(#arrowhead-emphasis)"/>
         <path data-edge-from="verify" data-edge-to="events" data-edge-label="pass / fail + tail" data-edge-key="1" data-composition-points="156,271;259,271" d="M 156 271 L 259 271" class="a-default" stroke-width="1.4" marker-end="url(#arrowhead)"/>
-        <path data-edge-from="orch" data-edge-to="events" data-edge-label="escalation · review rounds" data-edge-key="2" data-composition-points="156,385;315,385;315,300" d="M 156 385 L 315 385 L 315 300" class="a-dashed" stroke-width="1.4" marker-end="url(#arrowhead-dashed)"/>
+        <path data-edge-from="prhook" data-edge-to="events" data-edge-label="PR opened · URL" data-edge-key="2" data-composition-points="156,385;315,385;315,300" d="M 156 385 L 315 385 L 315 300" class="a-dashed" stroke-width="1.4" marker-end="url(#arrowhead-dashed)"/>
         <path data-edge-from="events" data-edge-to="stats" data-edge-label="aggregate" data-edge-key="3" data-composition-points="371,271;474,271" d="M 371 271 L 474 271" class="a-emphasis" stroke-width="1.8" marker-end="url(#arrowhead-emphasis)"/>
         <path data-edge-from="pricing" data-edge-to="stats" data-edge-label="USD per MTok" data-edge-key="4" data-composition-points="530,186;530,242" d="M 530 186 L 530 242" class="a-dashed" stroke-width="1.4" marker-end="url(#arrowhead-dashed)"/>
         <path data-edge-from="stats" data-edge-to="tune" data-edge-label="fit per agent + tier" data-edge-key="5" data-composition-points="586,271;689,271" d="M 586 271 L 689 271" class="a-emphasis" stroke-width="1.8" marker-end="url(#arrowhead-emphasis)"/>
@@ -5062,19 +5062,20 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
           <text data-detail="context" x="100" y="279" class="t-muted" font-size="7" text-anchor="middle">verify.sh</text>
         </g>
 
-        <g id="node-orch" data-node-id="orch" data-node-label="Orchestrator" tabindex="0" role="button" aria-label="Focus Orchestrator, kit-record.sh, 01 / Sources" aria-pressed="false" data-node-kind="backend" data-node-sublabel="kit-record.sh" data-node-context="01 / Sources">
-          <title>Orchestrator · kit-record.sh · 01 / Sources</title>
+        <g id="node-prhook" data-node-id="prhook" data-node-label="PostToolUse hook" tabindex="0" role="button" aria-label="Focus PostToolUse hook, review-gate.sh, 01 / Sources" aria-pressed="false" data-node-kind="security" data-node-sublabel="review-gate.sh" data-node-context="01 / Sources">
+          <title>PostToolUse hook · review-gate.sh · 01 / Sources</title>
           <rect x="44" y="356" width="112" height="58" rx="6" class="c-mask"/>
-          <rect x="44" y="356" width="112" height="58" rx="6" class="c-backend" stroke-width="1.5"/>
-          <g aria-hidden="true" data-semantic-sigil="backend" class="semantic-sigil s-backend" transform="translate(50 362) scale(0.6875)">
-            <path d="M6 3 3 8l3 5M10 3l3 5-3 5"/>
+          <rect x="44" y="356" width="112" height="58" rx="6" class="c-security" stroke-width="1.5"/>
+          <g aria-hidden="true" data-semantic-sigil="security" class="semantic-sigil s-security" transform="translate(50 362) scale(0.6875)">
+            <path d="M8 2.2 13 4v3.5c0 3.1-1.8 5.4-5 6.5-3.2-1.1-5-3.4-5-6.5V4Z"/>
+            <path d="m5.8 8 1.5 1.5 3-3"/>
           </g>
-          <text data-node-label="" data-detail-anchor="" x="100" y="377" class="t-primary" font-size="10" font-weight="600" text-anchor="middle">Orchestrator</text>
-          <text data-detail="context" x="100" y="393" class="t-muted" font-size="7" text-anchor="middle">kit-record.sh</text>
+          <text data-node-label="" data-detail-anchor="" x="100" y="387" class="t-primary" font-size="10" font-weight="600" text-anchor="middle">PostToolUse hook</text>
+          <text data-detail="context" x="100" y="400.4" class="t-muted" font-size="7" text-anchor="middle">review-gate.sh</text>
         </g>
 
-        <g id="node-events" data-node-id="events" data-node-label="events.jsonl" tabindex="0" role="button" aria-label="Focus events.jsonl, .claude/metrics/, 02 / Event log" aria-pressed="false" data-node-kind="database" data-node-sublabel=".claude/metrics/" data-node-context="02 / Event log">
-          <title>events.jsonl · .claude/metrics/ · 02 / Event log</title>
+        <g id="node-events" data-node-id="events" data-node-label="events.jsonl" tabindex="0" role="button" aria-label="Focus events.jsonl, in the main checkout, 02 / Event log" aria-pressed="false" data-node-kind="database" data-node-sublabel="in the main checkout" data-node-context="02 / Event log">
+          <title>events.jsonl · in the main checkout · 02 / Event log</title>
           <rect x="259" y="242" width="112" height="58" rx="6" class="c-mask"/>
           <rect x="259" y="242" width="112" height="58" rx="6" class="c-database" stroke-width="1.5"/>
           <g aria-hidden="true" data-semantic-sigil="database" class="semantic-sigil s-database" transform="translate(265 248) scale(0.6875)">
@@ -5082,7 +5083,7 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
             <path d="M3 4v8c0 1.1 2.2 2 5 2s5-.9 5-2V4M3 8c0 1.1 2.2 2 5 2s5-.9 5-2"/>
           </g>
           <text data-node-label="" data-detail-anchor="" x="315" y="263" class="t-primary" font-size="10" font-weight="600" text-anchor="middle">events.jsonl</text>
-          <text data-detail="context" x="315" y="279" class="t-muted" font-size="7" text-anchor="middle">.claude/metrics/</text>
+          <text data-detail="context" x="315" y="279" class="t-muted" font-size="7" text-anchor="middle">in the main checkout</text>
         </g>
 
         <g id="node-pricing" data-node-id="pricing" data-node-label="pricing.json" tabindex="0" role="button" aria-label="Focus pricing.json, list prices by tier, 03 / Scorecard" aria-pressed="false" data-node-kind="database" data-node-sublabel="list prices by tier" data-node-context="03 / Scorecard">
@@ -5144,15 +5145,15 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
           <text x="207.5" y="261" class="t-edge-default" font-size="8" text-anchor="middle">pass / fail + tail</text>
         <text data-detail="fine" x="207.5" y="272" class="t-dim" font-size="7" text-anchor="middle">measured</text>
         </g>
-        <g data-detail="context" data-edge-from="orch" data-edge-to="events" data-edge-label="escalation · review rounds" data-edge-key="2">
-          <rect x="165.8" y="364" width="139.4" height="27" rx="4" class="c-mask"/>
-          <text x="235.5" y="375" class="t-edge-dashed" font-size="8" text-anchor="middle">escalation · review rounds</text>
-        <text data-detail="fine" x="235.5" y="386" class="t-dim" font-size="7" text-anchor="middle">proxy</text>
+        <g data-detail="context" data-edge-from="prhook" data-edge-to="events" data-edge-label="PR opened · URL" data-edge-key="2">
+          <rect x="192.75" y="364" width="85.5" height="27" rx="4" class="c-mask"/>
+          <text x="235.5" y="375" class="t-edge-dashed" font-size="8" text-anchor="middle">PR opened · URL</text>
+        <text data-detail="fine" x="235.5" y="386" class="t-dim" font-size="7" text-anchor="middle">review rounds</text>
         </g>
         <g data-detail="context" data-edge-from="events" data-edge-to="stats" data-edge-label="aggregate" data-edge-key="3">
-          <rect x="367.5" y="303" width="110" height="27" rx="4" class="c-mask"/>
+          <rect x="374.85" y="303" width="95.3" height="27" rx="4" class="c-mask"/>
           <text x="422.5" y="314" class="t-edge-emphasis" font-size="8" text-anchor="middle">aggregate</text>
-        <text data-detail="fine" x="422.5" y="325" class="t-dim" font-size="7" text-anchor="middle">per model · per tier</text>
+        <text data-detail="fine" x="422.5" y="325" class="t-dim" font-size="7" text-anchor="middle">+ derived proxies</text>
         </g>
         <g data-detail="context" data-edge-from="pricing" data-edge-to="stats" data-edge-label="USD per MTok" data-edge-key="4">
           <rect x="492.15" y="189" width="75.7" height="27" rx="4" class="c-mask"/>
@@ -5377,7 +5378,7 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
         </div>
         <ul>
           <li>Speed and tokens from each subagent&#39;s own transcript</li>
-          <li>Verify pass rate, with the failing step and output tail</li>
+          <li>Verify pass rate, opened PRs, off-pin runs</li>
         </ul>
       </div>
 
@@ -5388,7 +5389,7 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
         </div>
         <ul>
           <li>fit = 1 − escalation rate, per (agent, tier)</li>
-          <li>Only implementer has an escalation path today</li>
+          <li>Derived from run order: implementer → deep-debugger</li>
         </ul>
       </div>
 

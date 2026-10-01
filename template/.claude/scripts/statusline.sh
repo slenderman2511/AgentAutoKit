@@ -1,6 +1,6 @@
 #!/bin/bash
 # AgentAutoKit status line: shows the model, git branch, and any subagents
-# currently running (a Task tool_use with no matching tool_result yet).
+# currently running (an Agent/Task tool_use with no matching tool_result yet).
 # Claude Code feeds session JSON on stdin and renders whatever we print.
 set -o pipefail
 INPUT=$(cat)
@@ -17,9 +17,10 @@ C_DIM=$'\033[2m'; C_CYAN=$'\033[36m'; C_GREEN=$'\033[32m'; C_YELLOW=$'\033[33m';
 
 ACTIVE=""
 if [ -n "$TRANSCRIPT" ] && [ -f "$TRANSCRIPT" ]; then
-  # Task launches (id → subagent_type) minus completed tool_use_ids = still running.
-  TASKS=$(grep -F '"name":"Task"' "$TRANSCRIPT" 2>/dev/null \
-    | jq -r '.message.content[]? | select(.type=="tool_use" and .name=="Task")
+  # Subagent launches (id → subagent_type) minus completed tool_use_ids = still
+  # running. The tool is "Agent" in current Claude Code, "Task" in older ones.
+  TASKS=$(grep -E '"name":"(Agent|Task)"' "$TRANSCRIPT" 2>/dev/null \
+    | jq -r '.message.content[]? | select(.type=="tool_use" and (.name=="Agent" or .name=="Task"))
              | "\(.id)\t\(.input.subagent_type // "agent")"' 2>/dev/null)
   if [ -n "$TASKS" ]; then
     DONE=$(grep -F '"tool_use_id"' "$TRANSCRIPT" 2>/dev/null \

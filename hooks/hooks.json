@@ -1,5 +1,5 @@
 {
-  "description": "AgentAutoKit guardrails + telemetry: protect sensitive files, remind the review gate before a PR, verify tsc + related tests before finishing, and log per-agent speed/cost.",
+  "description": "AgentAutoKit guardrails + telemetry: protect sensitive files, remind the review gate before a PR (and log the PR once opened), verify tsc + related tests before finishing, and log per-agent speed/cost.",
   "hooks": {
     "PreToolUse": [
       {
@@ -8,6 +8,14 @@
           { "type": "command", "command": "\"${CLAUDE_PLUGIN_ROOT}\"/hooks/protect-files.sh" }
         ]
       },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          { "type": "command", "command": "\"${CLAUDE_PLUGIN_ROOT}\"/hooks/review-gate.sh", "timeout": 5 }
+        ]
+      }
+    ],
+    "PostToolUse": [
       {
         "matcher": "Bash",
         "hooks": [

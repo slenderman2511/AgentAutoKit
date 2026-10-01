@@ -28,7 +28,7 @@ You are the orchestrator of a multi-agent software workflow. Follow `.claude/rul
 On the full accumulated diff: `code-reviewer` once (skip only for docs/UI-copy-only diffs); `security-auditor` once IF the diff touches API routes, webhooks, auth, permissions or security rules, admin pages, payments, or paths `CLAUDE.md` lists as security-sensitive; `npx tsc --noEmit` green. Run code-reviewer ‖ security-auditor in parallel. If review returns findings, route them back to `implementer` — max 2 rounds, then stop and summarize the blocker for the human.
 
 ## 4. Metrics (best-effort, never block on it)
-The `SubagentStop` hook records every run with its agent and model automatically. If `.claude/scripts/kit-record.sh` exists, log only the outcome proxies:
+The `SubagentStop` hook records every run with its agent and model, and `/kit-stats` derives escalations (implementer → deep-debugger) and review rounds (code-reviewer runs before each opened PR) from that run order — nothing to log by hand. Do not pass `model` to the Agent tool: it overrides the agent's pinned tier, and the scorecard flags those runs as off-pin. Optionally, if `.claude/scripts/kit-record.sh` exists, log the outcome yourself; it replaces the derived values for this session:
 - On escalation: `.claude/scripts/kit-record.sh escalation from=implementer to=deep-debugger model=<tier of the from agent> task_type=<type>`
 - After the review loop: `.claude/scripts/kit-record.sh review rounds=<n>`
 If `.claude/metrics/scorecard.md` exists, read it before routing.

@@ -12,5 +12,6 @@ Run:
 Then read `.claude/metrics/scorecard.md` and give the user a short read:
 - Which model is fastest / cheapest per run.
 - Any agent whose fit score is low (escalates often) — a candidate for a higher tier.
-- Overall verify first-pass rate and average review rounds (pipeline health).
+- Any off-pin runs: an agent running on a tier other than its frontmatter pin means a caller passed `model` to the Agent tool.
+- Overall verify first-pass rate, average review rounds, and PRs opened without a code-reviewer run (pipeline health).
 Do not change any agent config here — that is `/kit-tune`'s job.

@@ -19,7 +19,7 @@ set -e
 . "$(dirname "$0")/kit-metrics-lib.sh"
 
 ROOT="${CLAUDE_PROJECT_DIR:-$(pwd)}"
-MDIR="$ROOT/.claude/metrics"
+MDIR="$(kit_metrics_dir)"   # shared by every worktree; agents are edited in THIS checkout
 SCORE="$MDIR/scorecard.json"
 AGENTS_DIR="$ROOT/.claude/agents"
 APPLY=0
@@ -44,11 +44,7 @@ PROMOTE=$(echo "$CONF" | jq -r '.promote_if_fit_below // 0.6')
 DEMOTE_ON=$(echo "$CONF"| jq -r '.enable_demote // false')
 DEMOTE=$(echo "$CONF"  | jq -r '.demote_if_fit_above // 0.97')
 
-model_of() {  # read the model: line from an agent file's frontmatter block only
-  local f="$AGENTS_DIR/$1.md"
-  [ -f "$f" ] || { echo ""; return; }
-  sed -n '1,/^---$/{s/^model:[[:space:]]*//p;}' "$f" | head -1 | tr -d '\r'
-}
+model_of() { kit_agent_model "$AGENTS_DIR/$1.md"; }
 
 CHANGES=0
 echo "AgentAutoKit auto-tune (min_samples=$MIN, promote<$PROMOTE, demote=$DEMOTE_ON)"
