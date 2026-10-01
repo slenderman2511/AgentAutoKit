@@ -53,6 +53,8 @@ production and is where process improvements are proven first. When evolving the
 - Every writer resolves the metrics dir through `kit_metrics_dir` in `scripts/kit-metrics-lib.sh`:
   the repo's MAIN checkout, never a worktree (worktrees are deleted after merge). Hooks source the
   lib as `$(dirname "$0")/../scripts/`, which holds in both the plugin and the template layout.
+- Create the dir with `kit_ensure_dir`, never a bare `mkdir`: it drops a `*` `.gitignore` inside, because
+  plugin-only projects do not list `.claude/metrics/` and their "stage everything" commits would sweep it in.
 - Escalations and review rounds are derived in `kit-stats.sh` from run order; `kit-record.sh` is
   optional. Before changing the transcript parser or a derived signal, replay real transcripts
   (`~/.claude/projects/<proj>/<session>/subagents/agent-*.jsonl` + `.meta.json` for `agentType`)
