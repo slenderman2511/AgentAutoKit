@@ -18,6 +18,6 @@ Follow the playbook in `.claude/rules/workflow.md` when present (template instal
 4. Lookups that need searching → `code-scout` (batch independent ones in one message). A known path → read it directly.
 5. Implement via `implementer`. Route to `deep-debugger` when the root cause is unclear or the same test fails twice.
 6. New or changed logic → `test-writer` (or TDD inside the implementation step).
-7. **Review gate before any PR**, on the full diff: `code-reviewer` (skip only docs/copy-only diffs) ‖ `security-auditor` when the diff touches a security-sensitive path; `npx tsc --noEmit` and every project-specific gate green. Findings go back to `implementer`, max 2 rounds.
+7. **Review gate before any PR**, on the full diff: `code-reviewer` (skip only docs/copy-only diffs) ‖ `security-auditor` when the diff touches a security-sensitive path; ‖ `api-data-reviewer` when the diff touches API routes or the data model; `npx tsc --noEmit` and every project-specific gate green. Findings go back to `implementer`, max 2 rounds.
 8. Done = green exit code. Report only what a tool result in this session evidences.
 9. Never push to protected branches, deploy, merge, or delete — hand the PR to the human.

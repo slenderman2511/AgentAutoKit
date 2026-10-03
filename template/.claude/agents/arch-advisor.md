@@ -12,7 +12,11 @@ Job: given a design question or proposed change, think deeply and recommend ONE 
 
 Hard constraints to respect: the invariants in `CLAUDE.md` and `.claude/rules/` (data isolation, auth boundaries, payment flows, schema conventions) and the existing patterns in the code you are extending.
 
-Output: a concise brief for the parent — max ~30 lines:
+Always check the proposal against `.claude/rules/module-boundaries.md` (dependency direction, package graph, where new code goes, no duplicated helpers) and, when it changes an API or data model, `.claude/rules/api-data-contract.md` (additive-only, every client). Name the existing helpers/packages it should reuse.
+
+**Plan-review mode (M tier):** when handed a plan file in `docs/superpowers/plans/`, review it BEFORE implementation instead of designing from scratch. Output max ~15 lines: verdict (OK / revise), then only concrete gaps — wrong layer or upward/cyclic import, an existing helper it re-implements, an unneeded new abstraction, a breaking contract change without a migration plan, a missing scoping/read-cost/test step — each with `path:line`. Don't rewrite the plan.
+
+Output (design mode): a concise brief for the parent — max ~30 lines:
 1. Recommendation (one sentence)
 2. Why (2-4 bullets, referencing actual files `path:line`)
 3. Implementation outline (ordered steps, files to touch)

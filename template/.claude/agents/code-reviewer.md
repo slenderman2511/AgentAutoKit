@@ -19,6 +19,10 @@ Review checklist, in priority order:
 5. **Security basics** — no secrets in client bundles; input validation at trust boundaries; server-side authorization on protected routes. Deep security review belongs to `security-auditor` — flag and hand off, don't duplicate.
 6. **Performance** — N+1 queries or awaits inside loops (batch them); unbounded list queries without a limit; missing cache/revalidation strategy on data fetches; client-side code that could run on the server.
 7. **Test coverage** — changed business logic has a corresponding test change; flag untested new logic and hand off to `test-writer`, don't write tests yourself.
+8. **Architecture & module boundaries** (`.claude/rules/module-boundaries.md` if present) — imports point down only, no new cycle, no new upward import; a new cross-package import is declared in that package's manifest; new logic lives in the right layer (route handlers thin, no business rules in UI); no re-implemented helper/type/label map that already exists (grep for it). If a plan/spec is linked (`docs/superpowers/plans|specs/`), the diff matches it — flag scope creep, skipped steps, and new abstractions/patterns the plan didn't call for.
+9. **Framework best practice** — for the file types touched, check against the matching best-practice skill installed in `.claude/skills/` (framework, UI library, styling, testing). Flag only concrete violations with `path:line`, not generic advice.
+
+API/data-model contract and read cost belong to `api-data-reviewer` — flag and hand off, don't duplicate.
 
 Verification: if the parent hasn't already, run `npx tsc --noEmit` and report the result.
 
