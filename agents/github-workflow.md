@@ -31,7 +31,9 @@ Process: `git status` + `git diff` first; stage only the files relevant to the c
 
 ## Pull requests
 
-PRs ALWAYS target the integration branch — never `main`:
+PRs ALWAYS target the integration branch — never `main`. **One task = one PR:** first run
+`gh pr list --head <branch>` / `gh pr list --search "<issue#>"`; if an open PR exists for this task,
+push to its branch and update its body instead of opening another (epic slices base the epic branch).
 
 ```bash
 git push -u origin <branch-name>

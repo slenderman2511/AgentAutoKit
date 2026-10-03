@@ -25,6 +25,22 @@ and `main` are protected.
 - **Never deploy from the CLI.** Deployments happen through CI/the hosting integration or a human.
 - Flow: `git switch -c fix/description origin/dev` → commit → push → `gh pr create --base dev`.
 
+### One feature / one task = ONE PR
+
+A PR is the unit of review, delivery and rollback — so it maps 1:1 to a task (one issue, one plan).
+
+- **Don't split one task into several PRs.** Review fixes, test additions, doc updates and
+  "forgot one file" commits for an OPEN PR are pushed to the SAME branch — never a new PR.
+- **Don't bundle unrelated tasks into one PR.** A second, unrelated fix found on the way = its own
+  task/issue → its own PR later. No drive-by riders.
+- **Before `gh pr create`, check for an open PR on the same task/issue** (`gh pr list --head <branch>`,
+  `gh pr list --search "<issue#>"`). If one exists, push there and update its body instead.
+- **Epics:** each slice may get a child PR, but child PRs base an **epic branch**
+  (`epic/<slug>-<issue>`), and only ONE epic PR goes to the integration branch when the epic is
+  deliverable — not one integration-branch PR per slice.
+- **Exceptions:** after a PR MERGES, follow-up work is a NEW PR from a fresh branch (never stack on
+  merged history); urgent production hotfixes may ship alone even mid-epic.
+
 ### Forbidden commands
 
 ```bash
