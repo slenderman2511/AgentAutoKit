@@ -10,3 +10,4 @@ metrics/.cursor-*
 
 # OMC runtime state
 .omc/
+__pycache__/
