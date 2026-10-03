@@ -76,3 +76,10 @@ For locator style, waiting discipline, and flakiness fixes while writing steps, 
    - Mid-journey modal appeared/disappeared (e.g. "Complete Profile") -> adjust the `isVisible()` guard rather than adding fixed waits.
 5. Journeys are stateful: a run that dies mid-flow leaves a half-registered account behind. Since accounts are timestamped, just rerun — don't try to resume. Seeded events can be reset via `scripts/reset-event-for-testing.mjs`.
 6. For deeper trace-viewer / flaky-test methodology, defer to `playwright-best-practices` (debugging/debugging.md, debugging/flaky-tests.md).
+
+## Proof screenshots (L-tier / reviewer evidence)
+
+For an L-tier change, or whenever the reviewer needs evidence, run the journey through
+**`e2e-visual-proof`**: it asks desktop / phone / both, adds a `shot()` helper to the spec, fixes visible
+UI bugs it sees in the shots, and publishes one proof page to link in the PR + issue close-out. The
+same shots feed step 1 of the UI design-conformance loop (`.claude/rules/ui-design-conformance.md`).

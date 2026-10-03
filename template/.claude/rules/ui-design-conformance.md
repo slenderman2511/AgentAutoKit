@@ -14,8 +14,9 @@ Skip for: copy/i18n-only diffs, internal tweaks with no visual change, pure logi
 
 ## The loop (max 2 rounds)
 
-1. **Capture the built UI** — dev server + Playwright at **375 px and 1280 px** (the `ui-verify`
-   live-pass setup). Screenshot every state the prototype shows (default · empty · loading · error ·
+1. **Capture the built UI** — dev server + Playwright at **phone (375–390 px) and 1280 px** (the `ui-verify`
+   live-pass setup). If the L-tier e2e pass already ran with `e2e-visual-proof`, reuse those shots and capture only
+   the states it didn't cover. Screenshot every state the prototype shows (default · empty · loading · error ·
    success · key interaction). Screenshot the prototype at the same widths.
 2. **Audit — `hallmark audit`** (read-only, ranked punch list) on the built screens, WITH the
    prototype screenshots as the reference. Three buckets, each item =
