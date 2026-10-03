@@ -159,6 +159,7 @@ Every agent reads `CLAUDE.md` + `.claude/rules/` for project conventions and ret
 | `test-writer` | claude-sonnet-5-5 | high | read-write | Coverage for new/changed logic. |
 | `code-reviewer` | claude-opus-5-5 | xhigh | read-only | Pre-PR review (runs in parallel with security-auditor, once per PR). |
 | `security-auditor` | claude-opus-5-5 | xhigh | read-only | Pre-PR security pass on auth/API/rules surfaces. |
+| `api-data-reviewer` | claude-opus-5-5 | xhigh | read-only | Pre-PR API/data-model contract pass: additive-only versioning, every client (web/mobile), schema, indexes, read cost. |
 | `github-workflow` | claude-sonnet-5-5 | high | git ops | Complex git ops only — multi-branch, rebase, conflicts. PRs always base the integration branch; never merges, never pushes protected branches, never force-pushes. |
 
 ### The 3 commands
@@ -297,6 +298,7 @@ flowchart TB
 | `test-writer` | sonnet | high | **yes** | `Edit, Write, vitest, git diff` | Vitest coverage for edge & error paths |
 | `code-reviewer` | opus | xhigh | no | `Read, Grep, Glob, git diff/log` | Severity-rated review of the diff |
 | `security-auditor` | opus | xhigh | no | `Read, Grep, Glob, git diff` | Secrets, injection, authz, path traversal |
+| `api-data-reviewer` | opus | xhigh | no | `Read, Grep, Glob, git diff/log/-C` | Contract breaks, other clients, schema, indexes, read cost |
 | `github-workflow` | sonnet | high | no | `Read, Grep, Glob, git status/diff/log/fetch/switch/checkout/add/commit/rebase/push, gh pr create/view/list, tsc` | Branch, commit, rebase, PR — complex git ops only |
 
 ---
@@ -366,6 +368,12 @@ Runs **in parallel** with `code-reviewer` so the two gates don't serialize.
 
 - **Checks:** committed/logged secrets, injection (SQL/command/XSS), unsafe deserialization, missing authz/authn and IDOR, unsafe user-input handling and path traversal, dependency risks introduced by the change.
 - **Returns:** findings by severity with concrete remediation; reports only, never edits.
+
+### `api-data-reviewer` — API & data-model contract gate (opus, read-only, once per PR)
+Runs **in parallel** with the other reviewers whenever the diff touches API routes, a persisted data type/schema, index definitions, or adds a collection/table/field/query. Rules: `.claude/rules/api-data-contract.md`.
+
+- **Checks:** additive-only versioning (breaking change ⇒ add-alongside → migrate → remove plan), every other client of the route/field (e.g. a mobile app repo, grepped read-only), payload shape usable by all clients (data not presentation, bearer auth, pagination, stable error `code`, serialized timestamps, idempotent retries), schema design (scoping fields, optional new fields, indexes, document growth), and an estimated read cost.
+- **Returns:** findings by severity + a one-line contract verdict (`additive` / `breaking-with-plan` / `breaking-UNPLANNED`) and a reads/day estimate; reports only, never edits.
 
 ### `github-workflow` — the git specialist (sonnet, complex git ops only)
 Reserved for multi-branch work, rebases, and conflict resolution — a single commit + PR stays with the main session, which already has the context and doesn't need a round-trip through a subagent.

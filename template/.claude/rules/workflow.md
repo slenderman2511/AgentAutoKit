@@ -52,7 +52,7 @@ often on another session's branch; editing it tangles two tasks and breaks each 
 | Tier | When | Flow |
 |---|---|---|
 | **S** | Q1=yes, Q2=no, ≤3 files, mirrors an existing pattern | Implement directly (main session or `implementer`). NO spec, NO plan, NO arch-advisor. Verify: `npx tsc --noEmit` + the related test file. |
-| **M** | Q1=yes, 4–10 files, or a new route/feature mirroring an existing one | NO spec. Write a 10–20 line checkbox mini-plan in `docs/superpowers/plans/` → implement → full review gate. |
+| **M** | Q1=yes, 4–10 files, or a new route/feature mirroring an existing one | NO spec. Write a 10–20 line checkbox mini-plan in `docs/superpowers/plans/` → `arch-advisor` plan-review (one read-only pass: layers, reuse, boundaries) → implement → full review gate. |
 | **L** | Q2=yes, or Q1=no, or a new subsystem / data-model change | Spec in `docs/superpowers/specs/` → `spec-reviewer` → plan (checkbox state machine, `**Spec:**` backlink, Task 1 = pure logic + failing test) → execute → full review gate. |
 
 - **Ambiguous tier rounds UP.** A mis-tiered L executed as S costs far more than the process it skipped.
@@ -92,6 +92,8 @@ models absorb the token load. Fable is NEVER assigned to a subagent.
 | Complex git ops ONLY (multi-branch, rebase, conflicts) | `github-workflow` | claude-sonnet-5-5 | high |
 | Approach genuinely undecided BEFORE the spec (optional design consult) | `arch-advisor` | claude-opus-5-5 | xhigh |
 | Security review of security-sensitive paths (once per PR) | `security-auditor` | claude-opus-5-5 | xhigh |
+| M-tier plan review — one read-only pass before implementing | `arch-advisor` | claude-opus-5-5 | xhigh |
+| API / data-model contract review — versioning, all clients, schema, indexes, read cost (once per PR) | `api-data-reviewer` | claude-opus-5-5 | xhigh |
 | Post-change review against project rules (once per PR) | `code-reviewer` | claude-opus-5-5 | xhigh |
 | Unknown root cause, race conditions, complex multi-file refactors | `deep-debugger` | claude-opus-5-5 | xhigh |
 | Review a design spec before the plan (L tier only) | `spec-reviewer` | claude-opus-5-5 | xhigh |
@@ -109,8 +111,9 @@ models absorb the token load. Fable is NEVER assigned to a subagent.
    run `arch-advisor` first. Ambiguous difficulty defaults UP, never down.
 5. **Review gate is MANDATORY before every PR.** On the full accumulated diff: (a) `code-reviewer`
    once; (b) `security-auditor` once IF the diff touches a security-sensitive path listed in
-   `CLAUDE.md`; (c) `npx tsc --noEmit` green; (d) every project-specific gate listed in `CLAUDE.md`
-   green. Run (a) ‖ (b) in parallel. Findings go back to `implementer`, max 2 rounds, then stop and
+   `CLAUDE.md`; (c) `api-data-reviewer` once IF the diff touches API routes, a persisted data
+   type/schema, index definitions, or adds a collection/table/field/query; (d) `npx tsc --noEmit`
+   green; (e) every project-specific gate listed in `CLAUDE.md` green. Run (a) ‖ (b) ‖ (c) in parallel. Findings go back to `implementer`, max 2 rounds, then stop and
    summarize the blocker for the human. A PreToolUse hook reminds you at `gh pr create` — treat it as
    a stop, not noise.
 6. **Subagents return concise summaries** — do not ask them for full file dumps.
