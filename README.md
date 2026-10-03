@@ -190,7 +190,7 @@ Hooks are the kit's enforcement layer — CLAUDE.md only reminds; hooks make rul
 
 ### The 30 skills (details [below](#bundled-skills--companion-plugins))
 
-- **Workflow (9):** `worktree-dev` · `git-workflow` · `context-checkpoint` · `ui-prototype` · `ui-verify` · `github-issue-flow` · `add-bug-to-github` · `fix-from-github` · `conventions`
+- **Workflow (10):** `worktree-dev` · `git-workflow` · `context-checkpoint` · `ui-prototype` · `ui-verify` · `e2e-visual-proof` · `github-issue-flow` · `add-bug-to-github` · `fix-from-github` · `conventions`
 - **Best practices (18):** `frontend-design` · `hallmark` · `responsive-design` · `accessibility` · `seo` · `react-best-practices` · `composition-patterns` · `typescript-advanced-types` · `tailwind-css-patterns` · `nodejs-best-practices` · `nodejs-backend-patterns` · `playwright-best-practices` · `firebase-best-practices` · `payment-integration` · `stripe-best-practices` · `upgrade-stripe` · `i18n-best-practices` · `archify`
 - **Domain (3, tournament apps on Firebase):** `roster-import` · `firestore-config-edit` · `e2e-flow`
 
@@ -502,6 +502,7 @@ The kit ships a set of skills (loaded automatically by Claude when relevant) and
 | `context-checkpoint` | Keep long sessions healthy: persist plan/SOT/rules, then hand the user `/compact` or `/clear` + a resume prompt — never mid-task | pick-tour |
 | `ui-prototype` | Throwaway UX prototype (one HTML file, real design tokens, state machine) published as an Artifact or gist and linked into the issue as the behavior spec — Epic Flow step 2 | pick-tour |
 | `ui-verify` | Post-implementation UI check: static token rules → computed WCAG contrast per theme → live Playwright at 375/768/1280 | pick-tour |
+| `e2e-visual-proof` | Camera for the L-tier e2e pass: step screenshots (desktop/phone/both) → fix visible UI bugs → one self-contained proof page (`build-proof-page.py`) for the PR | pick-tour |
 | `github-issue-flow` | Change request → labeled issue before code → branch/PR linked → manual close after merge when PRs base a non-default branch | pick-tour |
 | `add-bug-to-github` | File a known bug into the `ai` work queue with kind/severity labels, after de-duplication | pick-tour |
 | `fix-from-github` | Drain the `ai` queue: claim lock, investigate, per-ticket plan gate, fix through the pipeline, draft PR — never merge | pick-tour |

@@ -53,7 +53,7 @@ often on another session's branch; editing it tangles two tasks and breaks each 
 |---|---|---|
 | **S** | Q1=yes, Q2=no, ≤3 files, mirrors an existing pattern | Implement directly (main session or `implementer`). NO spec, NO plan, NO arch-advisor. Verify: `npx tsc --noEmit` + the related test file. |
 | **M** | Q1=yes, 4–10 files, or a new route/feature mirroring an existing one | NO spec. Write a 10–20 line checkbox mini-plan in `docs/superpowers/plans/` → `arch-advisor` plan-review (one read-only pass: layers, reuse, boundaries) → implement → full review gate. |
-| **L** | Q2=yes, or Q1=no, or a new subsystem / data-model change | Spec in `docs/superpowers/specs/` → `spec-reviewer` → plan (checkbox state machine, `**Spec:**` backlink, Task 1 = pure logic + failing test) → execute → full review gate. |
+| **L** | Q2=yes, or Q1=no, or a new subsystem / data-model change | Spec in `docs/superpowers/specs/` → `spec-reviewer` → plan (checkbox state machine, `**Spec:**` backlink, Task 1 = pure logic + failing test) → execute → full review gate → **e2e user-journey pass** (`e2e-flow`) with the camera on (`e2e-visual-proof`: step screenshots in the viewport(s) the user picks + one proof page linked in the PR) BEFORE merge — when the project has an e2e suite; ask Yes/No first if it writes to a shared dev backend. |
 
 - **Ambiguous tier rounds UP.** A mis-tiered L executed as S costs far more than the process it skipped.
 - **Review gate scales with tier:** S = `code-reviewer` on the diff (skip entirely when the diff

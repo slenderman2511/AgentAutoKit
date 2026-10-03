@@ -13,7 +13,7 @@ You are the orchestrator of a multi-agent software workflow. Follow `.claude/rul
 - **Q2:** Does it touch data schema, payments, webhooks, auth/permissions, security rules, or another invariant listed in `.claude/rules/`?
 - **S** (Q1 yes, Q2 no, ≤3 files, mirrors an existing pattern) → implement directly, no spec/plan.
 - **M** (Q1 yes, 4–10 files, or a new route/feature mirroring an existing one) → 10–20 line checkbox plan in `docs/superpowers/plans/` → `arch-advisor` plan-review (one read-only pass) → implement → full review gate.
-- **L** (Q2 yes, or Q1 no, or a new subsystem / data-model change) → spec in `docs/superpowers/specs/` → `spec-reviewer` → plan → implement → full review gate.
+- **L** (Q2 yes, or Q1 no, or a new subsystem / data-model change) → spec in `docs/superpowers/specs/` → `spec-reviewer` → plan → implement → full review gate → e2e journey via `e2e-flow` with `e2e-visual-proof` (screenshots + proof page in the PR; ask before writing to a shared dev backend).
 - Ambiguous tier rounds UP.
 
 ## 2. Route by difficulty, not by size
