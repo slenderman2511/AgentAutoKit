@@ -40,7 +40,9 @@ If yes and it is one task → **not an epic**, just do it.
 3. **Slice production** — each slice = one child PR into the **epic branch** (one epic PR to the
    integration branch when deliverable — `general.md` § One feature / one task = ONE PR); each slice = one **S/M** task → `implementer` builds against the data
    contract (+ prototype if any). **TDD is back on here.**
-4. **Aspect sweep, once per epic** — UX polish · i18n · error/empty/loading states; then
+4. **UI conformance + aspect sweep, once per epic** — run the `ui-design-conformance.md` loop
+   (screenshots → `hallmark audit` vs prototype → `code-reviewer` triage → `implementer` applies
+   ACCEPTs) on every screen of the epic; then UX polish · i18n · error/empty/loading states; then
    `security-auditor` ‖ `code-reviewer` **verify** that scoping and payments were baked in correctly.
 
 ## Aspects: defer to step 4 vs bake into step 1

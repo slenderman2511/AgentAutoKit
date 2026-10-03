@@ -113,7 +113,7 @@ models absorb the token load. Fable is NEVER assigned to a subagent.
    once; (b) `security-auditor` once IF the diff touches a security-sensitive path listed in
    `CLAUDE.md`; (c) `api-data-reviewer` once IF the diff touches API routes, a persisted data
    type/schema, index definitions, or adds a collection/table/field/query; (d) `npx tsc --noEmit`
-   green; (e) every project-specific gate listed in `CLAUDE.md` green. Run (a) ‖ (b) ‖ (c) in parallel. Findings go back to `implementer`, max 2 rounds, then stop and
+   green; (e) the UI design-conformance loop (`ui-design-conformance.md`) IF the diff adds or visibly changes a page/screen or user-facing component; (f) every project-specific gate listed in `CLAUDE.md` green. Run (a) ‖ (b) ‖ (c) in parallel. Findings go back to `implementer`, max 2 rounds, then stop and
    summarize the blocker for the human. A PreToolUse hook reminds you at `gh pr create` — treat it as
    a stop, not noise.
 6. **Subagents return concise summaries** — do not ask them for full file dumps.

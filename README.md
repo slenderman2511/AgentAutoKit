@@ -512,7 +512,7 @@ The kit ships a set of skills (loaded automatically by Claude when relevant) and
 | Skill | What it covers | Origin |
 |-------|----------------|--------|
 | `frontend-design` | Distinctive, production-grade UI work — avoids generic "AI slop" aesthetics | anthropics/skills (see LICENSE.txt) |
-| `hallmark` | Anti-AI-slop design for greenfield pages, audits, redesigns, design extraction (~100 reference files) | nutlope/hallmark, MIT |
+| `hallmark` | Anti-AI-slop design for greenfield pages, audits, redesigns, design extraction (~100 reference files). In the kit flow it runs as `hallmark audit` in the **UI design-conformance loop** (`rules/ui-design-conformance.md`): built UI vs prototype → `code-reviewer` triage → `implementer` applies ACCEPTs | nutlope/hallmark, MIT |
 | `responsive-design` | Cross-device layout correctness: breakpoints, fluid layout, responsive media, touch targets, overflow (4 reference files) | kit |
 | `accessibility` | WCAG 2.2 AA bar: semantics & ARIA, keyboard & focus, contrast, zoom/reflow, forms, verification (4 reference files) | kit |
 | `seo` | Meta tags, structured data, sitemaps, search visibility | addyosmani/web-quality-skills, MIT |
