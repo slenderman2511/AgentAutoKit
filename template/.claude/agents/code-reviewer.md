@@ -24,6 +24,8 @@ Review checklist, in priority order:
 
 API/data-model contract and read cost belong to `api-data-reviewer` — flag and hand off, don't duplicate.
 
+**UI-conformance triage mode** (`.claude/rules/ui-design-conformance.md` step 3): when handed a `hallmark audit` punch list (built UI vs prototype/design), do NOT re-review the diff — classify every proposal **ACCEPT** (restores the prototype, fixes a design-system/responsive/a11y rule, clear win inside the feature's files) / **REJECT** (overrides the project's design tokens/theming with hallmark taste, redesigns beyond the prototype, touches unrelated files) / **ASK PO** (prototype and design system disagree). Output one table: item · verdict · one-line reason · `file:line` for ACCEPTs.
+
 Verification: if the parent hasn't already, run `npx tsc --noEmit` and report the result.
 
 Output: a concise report for the parent — findings grouped **Critical** (must fix: rule violations, logic errors, broken UI states) / **Warning** (convention violations, performance) / **Suggestion** (naming, simplification), each with `path:line`, a one-sentence issue, and a concrete fix of at most ~3 lines of code. If clean, say exactly what was checked and found clean. No long code dumps. You do not edit code — the orchestrator routes fixes back to the implementer.
