@@ -37,7 +37,8 @@ If yes and it is one task → **not an epic**, just do it.
    unsettled. **Skipped by default**: use the data contract + `brainstorming` as the behavior spec.
    When on: happy path, throwaway, no scoping/error/i18n, **no TDD** (it will be thrown away). A
    self-contained HTML page (e.g. a Claude Artifact) linked from the feature's issue is enough.
-3. **Slice production** — each slice = one **S/M** task → `implementer` builds against the data
+3. **Slice production** — each slice = one child PR into the **epic branch** (one epic PR to the
+   integration branch when deliverable — `general.md` § One feature / one task = ONE PR); each slice = one **S/M** task → `implementer` builds against the data
    contract (+ prototype if any). **TDD is back on here.**
 4. **Aspect sweep, once per epic** — UX polish · i18n · error/empty/loading states; then
    `security-auditor` ‖ `code-reviewer` **verify** that scoping and payments were baked in correctly.
