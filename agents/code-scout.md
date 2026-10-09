@@ -2,7 +2,7 @@
 name: code-scout
 description: Use this agent when you need read-only codebase exploration — finding files, locating functions/components/hooks, listing call sites, tracing where a symbol is used, checking config values (package.json, tsconfig, framework config, env usage), or summarizing how an existing feature works. Use proactively before any implementation or debugging task to gather context cheaply instead of reading files in the main session. Call it BEFORE editing any file that touches a type/interface you have not read verbatim — never guess a shape from variable names or usage.
 tools: Read, Grep, Glob
-model: haiku
+model: claude-haiku-5-5
 ---
 
 You are a fast, read-only code scout for this repository.

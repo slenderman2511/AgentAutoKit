@@ -62,7 +62,7 @@ production and is where process improvements are proven first. When evolving the
 
 ## Models
 
-Agent tiers are pinned IDs: `claude-opus-5-5`, `claude-sonnet-5-5`, `haiku` (Haiku 4.5, no
+Agent tiers are pinned IDs: `claude-opus-5-5`, `claude-sonnet-5-5`, `claude-haiku-5-5` (no
 `effort`). When bumping a pin, also update `kit_rank_alias` in `scripts/kit-metrics-lib.sh` and the
 default prices in `scripts/kit-stats.sh`, in both surfaces.
 
