@@ -86,7 +86,7 @@ models absorb the token load. Fable is NEVER assigned to a subagent.
 
 | Task type | Agent | Model | Effort |
 |---|---|---|---|
-| Find files/symbols/call sites, check configs, summarize existing code | `code-scout` | haiku | – |
+| Find files/symbols/call sites, check configs, summarize existing code | `code-scout` | claude-haiku-5-5 | – |
 | Small features, known-cause fixes, pattern-following refactors (1–5 files) | `implementer` | claude-sonnet-5-5 | high |
 | Write/fix Vitest or Playwright tests, test factories | `test-writer` | claude-sonnet-5-5 | high |
 | Complex git ops ONLY (multi-branch, rebase, conflicts) | `github-workflow` | claude-sonnet-5-5 | high |

@@ -260,7 +260,7 @@ Also new: **`.claude/workflows/review-branch.js`** (template only) — an opt-in
 
 Ten agents split into four lanes — one coordinator, five read-only advisors, three read-write builders, one git-ops specialist. Model tier is chosen per role: `haiku` for cheap fan-out exploration, `sonnet` for routine building and git ops, `opus` for judgement-heavy work (design, spec review, hard bugs, code/security review).
 
-The `sonnet` and `opus` tiers are **pinned to explicit model IDs** in agent frontmatter — `claude-sonnet-5-5` (Sonnet 5.5) and `claude-opus-5-5` (Opus 5.5) — so a Claude Code alias update never silently changes which model a role runs on. `code-scout` keeps the `haiku` alias (Haiku 4.5, which has no `effort` setting). Every other agent also pins an explicit `effort` (`high` or `xhigh`) in frontmatter, tuned per role. Tier names (`haiku`/`sonnet`/`opus`) in the tables below refer to these models.
+All three tiers are **pinned to explicit model IDs** in agent frontmatter — `claude-haiku-5-5` (Haiku 5.5), `claude-sonnet-5-5` (Sonnet 5.5) and `claude-opus-5-5` (Opus 5.5) — so a Claude Code alias update never silently changes which model a role runs on. `code-scout` is pinned to `claude-haiku-5-5` (Haiku 5.5; the `haiku` alias still resolves to Haiku 4.5 in current Claude Code) and carries no `effort` line. Every other agent also pins an explicit `effort` (`high` or `xhigh`) in frontmatter, tuned per role. Tier names (`haiku`/`sonnet`/`opus`) in the tables below refer to these models.
 
 ```mermaid
 flowchart TB
@@ -664,7 +664,7 @@ Per the [plugin reference](https://code.claude.com/docs/en/plugins-reference), a
 
 ## Customizing
 
-- Change the pinned model IDs in agent frontmatter (`claude-opus-5-5`, `claude-sonnet-5-5`) — or use floating aliases (`opus`/`sonnet`/`haiku`) if you prefer auto-upgrades. Each non-haiku agent also carries an `effort:` line (`high`/`xhigh`) alongside its pinned model, tuned per role; Haiku 4.5 doesn't support `effort`, so `code-scout` omits it. When bumping a pin, also update `kit_rank_alias` in `scripts/kit-metrics-lib.sh` (what `/kit-tune` writes on promotion) and the default prices in `scripts/kit-stats.sh`.
+- Change the pinned model IDs in agent frontmatter (`claude-opus-5-5`, `claude-sonnet-5-5`, `claude-haiku-5-5`) — or use floating aliases (`opus`/`sonnet`/`haiku`) if you prefer auto-upgrades. Each non-haiku agent also carries an `effort:` line (`high`/`xhigh`) alongside its pinned model, tuned per role; `code-scout` omits it. When bumping a pin, also update `kit_rank_alias` in `scripts/kit-metrics-lib.sh` (what `/kit-tune` writes on promotion) and the default prices in `scripts/kit-stats.sh`.
 - Edit `hooks/protect-files.sh` to adjust protected paths.
 - Tighten/loosen `template/.claude/settings.json` permissions per project.
 

@@ -57,10 +57,10 @@ kit_model_rank() {
 }
 
 # Canonical model for a tier rank (used when rewriting frontmatter).
-# sonnet/opus are pinned model IDs so a promotion keeps the kit's pinning policy.
+# All tiers are pinned model IDs so a promotion keeps the kit's pinning policy.
 kit_rank_alias() {
   case "$1" in
-    1) echo haiku ;;
+    1) echo claude-haiku-5-5 ;;
     2) echo claude-sonnet-5-5 ;;
     3) echo claude-opus-5-5 ;;
     *) echo "" ;;
