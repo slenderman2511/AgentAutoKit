@@ -42,7 +42,7 @@ The moving parts:
 | **Telemetry & tuning** | Per-model speed/cost + fit scoring that feeds routing back into itself | `scripts/` + `SubagentStop` hook |
 | **Status line** | Live view of which agents are running (agent-panel rows + bottom bar) | `scripts/*statusline.sh` + `subagentStatusLine`/`statusLine` |
 | **Commands** | `/init-kit` (entry), `/kit-stats` (scorecard), `/kit-tune` (re-allocate) | `commands/` · `template/.claude/commands/` |
-| **Skills** | 30 auto-loaded skills: workflow skills from the reference project, framework best practices, domain workflows | `skills/` · `template/.claude/skills/` |
+| **Skills** | 32 auto-loaded skills: workflow skills from the reference project, framework best practices, domain workflows | `skills/` · `template/.claude/skills/` |
 | **Companion plugins** | 10 plugins declared for the whole team via `enabledPlugins` | `template/.claude/settings.json` |
 | **Installer** | Idempotent merge-aware `init.sh` — installs, upgrades, never clobbers | `scripts/init.sh` |
 
@@ -188,11 +188,12 @@ Hooks are the kit's enforcement layer — CLAUDE.md only reminds; hooks make rul
 - Fit scored per (agent, tier) so promotions are evaluated on fresh evidence; demotion is opt-in and requires a real escalation signal.
 - Auto-tune edits one reversible `model:` frontmatter line, dry-run by default, human-reviewed diff.
 
-### The 31 skills (details [below](#bundled-skills--companion-plugins))
+### The 32 skills (details [below](#bundled-skills--companion-plugins))
 
 - **Workflow (10):** `worktree-dev` · `git-workflow` · `context-checkpoint` · `ui-prototype` · `ui-verify` · `e2e-visual-proof` · `github-issue-flow` · `add-bug-to-github` · `fix-from-github` · `conventions`
 - **Best practices (18):** `frontend-design` · `hallmark` · `responsive-design` · `accessibility` · `seo` · `react-best-practices` · `composition-patterns` · `typescript-advanced-types` · `tailwind-css-patterns` · `nodejs-best-practices` · `nodejs-backend-patterns` · `playwright-best-practices` · `firebase-best-practices` · `payment-integration` · `stripe-best-practices` · `upgrade-stripe` · `i18n-best-practices` · `archify`
 - **Domain (3, tournament apps on Firebase):** `roster-import` · `firestore-config-edit` · `e2e-flow`
+- **Media (1):** `voice-clone`
 
 All auto-loaded by Claude when the task matches their triggers.
 
@@ -540,6 +541,12 @@ Not bundled: `next-best-practices`, `next-cache-components` and `next-upgrade` �
 | `roster-import` | XLSX roster → Firestore event entries: seeding rules, entry shapes, doubles pairing, dry-run, confirm-before-write | pick-tour |
 | `firestore-config-edit` | Edit tenant/event config in Firestore and bust the app cache | pick-tour |
 | `e2e-flow` | Full user-journey Playwright specs (dev server, seeding, Stripe test checkout, bilingual selectors) | authored from pick-tour |
+
+**Media skills** — local audio pipelines; delete where they don't apply.
+
+| Skill | What it covers | Origin |
+|-------|----------------|--------|
+| `voice-clone` | Clone a **consenting** person's voice locally: speech (viXTTS/XTTS, non-commercial weights) and singing voice swap (Seed-VC), reference picking with Demucs + Whisper, objective checks (word match, speaker similarity, LUFS), Apple Silicon patches. Scripts refuse to run without `voice/consent/<name>.md` | kit (authored from the Musical-AI and promo-video pipelines) |
 
 ### Companion plugins (declared in the template's `settings.json`)
 
