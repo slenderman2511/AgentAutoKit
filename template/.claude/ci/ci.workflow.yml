@@ -1,0 +1,55 @@
+# MIRROR of .github/workflows/ci.yml — agents edit the mirror; a human copies it into
+# .github/workflows/ci.yml (that path is blocked for agents by .claude/hooks/protect-files.sh).
+# AgentAutoKit installs this starter at .claude/ci/ci.workflow.yml and re-syncs it on upgrade, so
+# keep your project's copy at scripts/workflows/ci.workflow.yml and copy from there:
+#   mkdir -p scripts/workflows .github/workflows
+#   cp .claude/ci/ci.workflow.yml scripts/workflows/ci.workflow.yml   # once; edit this one
+#   cp scripts/workflows/ci.workflow.yml .github/workflows/ci.yml     # human, after each edit
+name: CI
+
+# OPT-IN gate: CI does NOT run on every push. It runs only on demand — add the `run-ci` label to
+# a PR into the integration branch, or trigger it from the Actions tab (once this workflow is on
+# the default branch). Features are tested locally before the PR, so the full typecheck + test
+# suite runs on request. To re-run after new commits, remove and re-add the `run-ci` label.
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: [dev]   # the integration branch named in CLAUDE.md
+    types: [labeled]
+
+# A newer run for the same ref cancels the in-flight one.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  typecheck-test:
+    # Only for a manual dispatch, or when the label just added is `run-ci`.
+    if: github.event_name == 'workflow_dispatch' || github.event.label.name == 'run-ci'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Typecheck
+        run: npx tsc --noEmit
+
+      - name: Unit tests
+        run: npm test
+
+      # Lint is informational: a lint backlog should not block merges. Promote it to a hard gate
+      # (drop continue-on-error) once the backlog is clear. Never put continue-on-error on a test step.
+      - name: Lint (non-blocking)
+        run: npm run lint
+        continue-on-error: true

@@ -1,0 +1,54 @@
+# MIRROR of .github/workflows/kit-ci.yml — agents edit THIS file; a human copies it into
+# .github/workflows/kit-ci.yml (that path is blocked for agents by hooks/protect-files.sh):
+#   mkdir -p .github/workflows && cp ci/kit-ci.workflow.yml .github/workflows/kit-ci.yml
+# Every step calls ci/kit-check.sh, so the same checks run locally with `ci/kit-check.sh`.
+name: Kit CI
+
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+# A newer push to the same PR cancels the in-flight run.
+concurrency:
+  group: kit-ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      KIT_CI: '1'   # a missing tool fails the step instead of skipping it
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      # ubuntu-latest ships bash, jq, git and python3. The Claude Code CLI is only needed for
+      # `claude plugin validate` (a local manifest check: no login, no API key).
+      - name: Install Claude Code CLI
+        run: npm install -g @anthropic-ai/claude-code
+
+      - name: Shell + Python syntax
+        run: ci/kit-check.sh syntax
+
+      - name: JSON validity
+        run: ci/kit-check.sh json
+
+      - name: Plugin and template surfaces identical
+        run: ci/kit-check.sh surfaces
+
+      - name: Plugin manifest (claude plugin validate)
+        run: ci/kit-check.sh validate
+
+      - name: init.sh dry-run + install into a temp repo
+        run: ci/kit-check.sh install
+
+      - name: Skill selftests
+        run: ci/kit-check.sh selftest

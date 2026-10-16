@@ -31,6 +31,9 @@ _Any PR that touches these triggers `security-auditor`._
 ## Project-specific gates
 _Run before every PR, in addition to `npx tsc --noEmit`._
 - <e.g. `npm run lint`, a custom check script — delete this line if none>
+- CI workflows are **mirrors**: agents edit `scripts/workflows/<name>.workflow.yml`, a human copies
+  each into `.github/workflows/<name>.yml` (agents are blocked from that path). Starter: `.claude/ci/ci.workflow.yml`
+  — opt-in via the `run-ci` label on a PR into the integration branch, or a manual dispatch.
 
 ## Project rules
 - <Invariants every agent must respect — data isolation, naming conventions, domain rules.
