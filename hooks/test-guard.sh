@@ -2,7 +2,7 @@
 # PreToolUse hook (Edit|Write|MultiEdit), NON-BLOCKING: when an edit ADDS a way to silence a test —
 # skip/only, a commented-out test, an always-true assertion, retries or `|| true` — the edit goes
 # through and the agent gets a reminder in its context to justify it or undo it. It never prompts the
-# user (that stalls long runs); the hard stop is `test-smells.py diff` in CI at PR time. Existing
+# user (that stalls long runs); a hard stop needs `test-smells.py diff` as a CI step (audit.md §6). Existing
 # occurrences are not re-flagged: only what the edit adds (count in new > count in replaced text).
 # Output: additionalContext JSON on stdout. Exit 0 always.
 INPUT=$(cat)
@@ -23,7 +23,7 @@ NEW=$(echo "$INPUT" | jq -r '[.tool_input.new_string, .tool_input.content, (.too
 OLD=$(echo "$INPUT" | jq -r '[.tool_input.old_string, (.tool_input.edits // [] | .[].old_string)] | map(select(. != null)) | join("\n")')
 # Write replaces the whole file: compare against what is on disk now.
 if [ -z "$OLD" ] && [ -f "$FILE" ] && echo "$INPUT" | jq -e '.tool_input.content != null' >/dev/null; then
-  OLD=$(cat "$FILE")
+  OLD=$(cat -- "$FILE")
 fi
 
 count() { printf '%s' "$1" | grep -cE "$2"; }
@@ -46,6 +46,6 @@ check "loosens the gate (retries, passWithNoTests, || true, continue-on-error)" 
 
 [ -z "$REASONS" ] && exit 0
 
-MSG="test-guard: this edit to $FILE $REASONS. That needs the user's explicit approval and a stated reason (why the test is wrong/flaky + tracking issue) — otherwise undo it: investigate the failure and fix the code, or update the test to the changed contract. CI (test-smells.py diff) will flag it on the PR."
+MSG="test-guard: this edit to $FILE $REASONS. That needs the user's explicit approval and a stated reason (why the test is wrong/flaky + tracking issue) — otherwise undo it: investigate the failure and fix the code, or update the test to the changed contract. If the repo runs test-smells.py diff in CI, the PR will be flagged too."
 jq -n --arg r "$MSG" '{hookSpecificOutput: {hookEventName: "PreToolUse", additionalContext: $r}}'
 exit 0

@@ -213,8 +213,8 @@ li > input[type=checkbox] { accent-color: var(--ok); margin-right: 8px; transfor
   <main class="sheet" id="sheet"></main>
 </div>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/marked/12.0.2/marked.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/mermaid/10.9.8/mermaid.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/marked/12.0.2/marked.min.js" integrity="sha512-xeUh+KxNyTufZOje++oQHstlMQ8/rpyzPuM+gjMFYK3z5ILJGE7l2NvYL+XfliKURMpBIKKp1XoPN/qswlSMFA==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mermaid/10.9.8/mermaid.min.js" integrity="sha512-W44v4BgrfdCXnfKNCPLIa8yzpMbB5761jGLoi9UKSkAP5rveS4LqWnnBQV4n7hArLoGHijukXIpCxxbzqAX/Vg==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 <script>
 const DOCS = __DATA__;
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));

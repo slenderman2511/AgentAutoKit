@@ -177,6 +177,9 @@ def main():
         if not args:
             print("diff needs a BASE ref", file=sys.stderr)
             return 2
+        if args[0].startswith("-"):
+            print(f"BASE must be a git ref, not an option: {args[0]}", file=sys.stderr)
+            return 2
         merge_base = subprocess.run(["git", "merge-base", args[0], "HEAD"],
                                     capture_output=True, text=True).stdout.strip() or args[0]
         findings = [(p, n, c, t.strip()) for p, n, t in added_lines(merge_base) for c in classify(p, t, weak)]
