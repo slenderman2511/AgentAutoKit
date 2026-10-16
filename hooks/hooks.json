@@ -1,11 +1,12 @@
 {
-  "description": "AgentAutoKit guardrails + telemetry: protect sensitive files, block PRs off the integration branch and pushes to protected branches, remind the review gate before a PR (and log the PR once opened), verify tsc + related tests before finishing, and log per-agent speed/cost.",
+  "description": "AgentAutoKit guardrails + telemetry: protect sensitive files, remind when an edit silences a test, block PRs off the integration branch and pushes to protected branches, remind the review gate before a PR (and log the PR once opened), verify tsc + related tests before finishing, and log per-agent speed/cost.",
   "hooks": {
     "PreToolUse": [
       {
         "matcher": "Edit|Write|MultiEdit",
         "hooks": [
-          { "type": "command", "command": "\"${CLAUDE_PLUGIN_ROOT}\"/hooks/protect-files.sh" }
+          { "type": "command", "command": "\"${CLAUDE_PLUGIN_ROOT}\"/hooks/protect-files.sh" },
+          { "type": "command", "command": "\"${CLAUDE_PLUGIN_ROOT}\"/hooks/test-guard.sh", "timeout": 5 }
         ]
       },
       {
