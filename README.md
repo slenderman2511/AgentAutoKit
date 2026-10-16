@@ -37,12 +37,12 @@ The moving parts:
 | Part | What it is | Where it lives |
 |------|------------|----------------|
 | **Agents** | 10 specialists with scoped tools, model tier + effort | `agents/` (plugin) · `template/.claude/agents/` |
-| **Playbook** | Working discipline, Task Sizing S/M/L, model routing, orchestrator rules | `.claude/rules/workflow.md` (+ `epic-flow.md`, `general.md`) — template only, auto-loaded |
+| **Playbook** | Working discipline, Task Sizing S/M/L, model routing, orchestrator rules | `.claude/rules/workflow.md` (+ `epic-flow.md`, `general.md`, `launch-readiness.md`) — template only, auto-loaded |
 | **Guardrails** | 5 shell hooks: block unsafe edits, block PRs off the integration branch and pushes to protected branches, remind the review gate before a PR, gate un-verified finishes | `hooks/` · `template/.claude/hooks/` |
 | **Telemetry & tuning** | Per-model speed/cost + fit scoring that feeds routing back into itself | `scripts/` + `SubagentStop` hook |
 | **Status line** | Live view of which agents are running (agent-panel rows + bottom bar) | `scripts/*statusline.sh` + `subagentStatusLine`/`statusLine` |
 | **Commands** | `/init-kit` (entry), `/kit-stats` (scorecard), `/kit-tune` (re-allocate) | `commands/` · `template/.claude/commands/` |
-| **Skills** | 35 auto-loaded skills: workflow skills from the reference project, framework best practices, domain workflows | `skills/` · `template/.claude/skills/` |
+| **Skills** | 36 auto-loaded skills: workflow skills from the reference project, framework best practices, domain workflows | `skills/` · `template/.claude/skills/` |
 | **Companion plugins** | 10 plugins declared for the whole team via `enabledPlugins` | `template/.claude/settings.json` |
 | **Installer** | Idempotent merge-aware `init.sh` — installs, upgrades, never clobbers | `scripts/init.sh` |
 
@@ -93,6 +93,7 @@ This merges `.claude/` (agents, commands, hooks, skills, **settings.json with pe
 - Files your project added itself (extra skills, agents, commands) are never touched — no duplicates, no conflicts.
 - `settings.json` is **deep-merged, never overwritten**: your permission rules, hooks, `enabledPlugins` and marketplaces are kept; the kit only fills gaps. To permanently opt out of a kit-declared plugin, set it to `false` instead of deleting the key (a deleted key gets re-filled on the next upgrade).
 - An existing root `CLAUDE.md` is never overwritten; the installed kit version is stamped in `.claude/.agentautokit-version`.
+- 2.10.0 adds a "Public web surface" section (read by `launch-check`) to the template `CLAUDE.md`; since `init.sh` never overwrites a project's root `CLAUDE.md`, copy it by hand from [`template/.claude/CLAUDE.md`](template/.claude/CLAUDE.md).
 
 ### Upgrading to 2.0
 
@@ -177,7 +178,7 @@ Every agent reads `CLAUDE.md` + `.claude/rules/` for project conventions and ret
 | `protect-files.sh` | `PreToolUse` (Edit/Write/MultiEdit) | Blocks edits to `.env*`, secrets, keys, CI workflows, migrations. |
 | `test-guard.sh` | `PreToolUse` (Edit/Write/MultiEdit) | Non-blocking: when an edit to a test/test-config/workflow file ADDS a skip/only, a commented-out test, an always-true assertion, retries or `\|\| true`, injects a reminder telling the agent to justify or undo it. Never prompts (no stalls); for a hard stop, add `test-smells.py diff` as a CI step. |
 | `git-guard.sh` | `PreToolUse` (Bash) | Blocks `gh pr create` that would not base the integration branch (`Integration branch:` in `CLAUDE.md`, else `dev` when origin has one; the `--head <integration> --base main` promotion PR is allowed) and any `git push` to the integration branch, `main` or `master` (`HEAD:dev`, `+main`, `--delete`, `--all`, a bare push from them). Repos with no integration branch are not enforced; `KIT_GIT_GUARD=off` disables it. |
-| `review-gate.sh` | `PreToolUse` + `PostToolUse` (Bash) | Non-blocking: before `gh pr create`, injects the mandatory review-gate checklist as additional context (ported from pick-tour); after it, logs a `pr` event when the output carries the new PR's URL, so `/kit-stats` can count review rounds per PR. |
+| `review-gate.sh` | `PreToolUse` + `PostToolUse` (Bash) | Non-blocking: before `gh pr create`, injects the mandatory review-gate checklist as additional context (ported from pick-tour; item (f) asks for the `launch-check` skill when the diff adds a public route or touches metadata, layout, robots, sitemap or next.config); after it, logs a `pr` event when the output carries the new PR's URL, so `/kit-stats` can count review rounds per PR. |
 | `verify.sh` | `Stop` | Runs `tsc --noEmit` only if `tsconfig.json` exists, and Vitest only if `package.json` lists it — as `vitest related --run` on changed + untracked source files (the full suite is CI's job). A docs-only change skips cleanly. Blocks finishing on failure; a failed run records the failing step + last 20 output lines. 300s timeout. |
 | `metrics-subagent.sh` | `SubagentStop` | Measures every subagent run (tokens incl. cache, duration per sidechain), tagged with its agent name from `agent_type`, into the main checkout's `events.jsonl`. Never blocks. |
 
@@ -190,9 +191,9 @@ Hooks are the kit's enforcement layer — CLAUDE.md only reminds; hooks make rul
 - Fit scored per (agent, tier) so promotions are evaluated on fresh evidence; demotion is opt-in and requires a real escalation signal.
 - Auto-tune edits one reversible `model:` frontmatter line, dry-run by default, human-reviewed diff.
 
-### The 35 skills (details [below](#bundled-skills--companion-plugins))
+### The 36 skills (details [below](#bundled-skills--companion-plugins))
 
-- **Workflow (13):** `worktree-dev` · `git-workflow` · `context-checkpoint` · `grill-me` · `ui-prototype` · `ui-verify` · `e2e-visual-proof` · `test-guard` · `project-docs` · `github-issue-flow` · `add-bug-to-github` · `fix-from-github` · `conventions`
+- **Workflow (14):** `worktree-dev` · `git-workflow` · `context-checkpoint` · `grill-me` · `ui-prototype` · `ui-verify` · `e2e-visual-proof` · `test-guard` · `project-docs` · `launch-check` · `github-issue-flow` · `add-bug-to-github` · `fix-from-github` · `conventions`
 - **Best practices (18):** `frontend-design` · `hallmark` · `responsive-design` · `accessibility` · `seo` · `react-best-practices` · `composition-patterns` · `typescript-advanced-types` · `tailwind-css-patterns` · `nodejs-best-practices` · `nodejs-backend-patterns` · `playwright-best-practices` · `firebase-best-practices` · `payment-integration` · `stripe-best-practices` · `upgrade-stripe` · `i18n-best-practices` · `archify`
 - **Domain (3, tournament apps on Firebase):** `roster-import` · `firestore-config-edit` · `e2e-flow`
 - **Media (1):** `voice-clone`
@@ -252,8 +253,9 @@ Claude Code auto-loads every `.claude/rules/*.md` file into context, so the kit'
 - **`workflow.md`** — working discipline (think before coding, YAGNI, surgical changes), worktree-first, Task Sizing S/M/L, the model-routing table, orchestrator rules, and the main-session model policy. `/init-kit` and `orchestrator.md` both summarize this file.
 - **`epic-flow.md`** — an optional wrapper above S/M/L for a multi-feature epic where the data model or UX isn't settled yet (lock the data → optional thin UX prototype → slice production into S/M tasks → one aspect sweep). A single task skips it entirely.
 - **`general.md`** — code style and the mandatory Git workflow (protected branches, PR-only, forbidden commands).
+- **`launch-readiness.md`** — when the pre-launch "not vibe coded" check fires (the diff adds a public route or touches metadata, layout, robots, sitemap or `next.config`; before the first production deploy) and where it hooks into the review gate. The checklist itself lives only in the `launch-check` skill.
 
-`init.sh` re-syncs these three files on upgrade, same as agents/hooks/commands. The root `CLAUDE.md` template now holds only **project facts** — commands, the integration branch, security-sensitive paths, project-specific gates, project rules — so it stays short and rarely drifts from the rules files.
+`init.sh` re-syncs every file in `.claude/rules/` on upgrade, same as agents/hooks/commands. The root `CLAUDE.md` template now holds only **project facts** — commands, the integration branch, security-sensitive paths, project-specific gates, project rules — so it stays short and rarely drifts from the rules files.
 
 Also new: **`.claude/workflows/review-branch.js`** (template only) — an opt-in, multi-dimension review of the current branch's diff against a base (default `origin/dev`): one reviewer per dimension (correctness, data isolation & authz, payments & secrets, UI states, performance), each finding then adversarially re-verified before it's reported. Complements, and does not replace, the mandatory `code-reviewer` + `security-auditor` gate.
 
@@ -484,7 +486,7 @@ flowchart LR
 - **`protect-files.sh`** (PreToolUse on `Edit|Write|MultiEdit`) — blocks writes to `.env*`, `*.pem`, `*.key`, `secrets/`, `.github/workflows/`, and `migrations/` (matched whether the path is absolute or root-relative). Exits `2`, and its stderr is fed back to the agent so it knows *why* it was blocked.
 - **`test-guard.sh`** (PreToolUse on `Edit|Write|MultiEdit`) — on test files, test-runner config and workflows, compares the new text with the text it replaces and, when the edit adds a way to silence a test: `.skip`/`.only`/`xit`/`markTestSkipped`, a commented-out test, `expect(true).toBe(true)`/`assertTrue(true)`, retries, `--passWithNoTests`, `|| true` after a test command or `continue-on-error`. injects `additionalContext` telling the agent to get approval with a reason or undo it. Non-blocking by design — a permission prompt stalls long agent runs; a hard stop needs `test-smells.py diff` as a CI step (see the skill's `references/audit.md` §6). Pairs with the `test-guard` skill.
 - **`git-guard.sh`** (PreToolUse on `Bash`) — the git workflow as a hook instead of a sentence: blocks a `gh pr create` that would not base the integration branch and any `git push` that targets the integration branch, `main` or `master`. Exits `2` with the reason; the release flow's own scripts are not affected (the hook only sees the command the agent typed).
-- **`review-gate.sh`** (PreToolUse on `Bash`) — when a command contains `gh pr create`, injects the mandatory review-gate checklist as additional context. Non-blocking: it reminds, the agent still decides. Ported from pick-tour, the kit's reference project. The same script on `PostToolUse` logs the opened PR (telemetry only).
+- **`review-gate.sh`** (PreToolUse on `Bash`) — when a command contains `gh pr create`, injects the mandatory review-gate checklist as additional context, including the `launch-check` item (f) for diffs that add a public route or touch metadata, layout, robots, sitemap or next.config. Non-blocking: it reminds, the agent still decides. Ported from pick-tour, the kit's reference project. The same script on `PostToolUse` logs the opened PR (telemetry only).
 - **`verify.sh`** (Stop) — before an agent is allowed to finish, runs `tsc --noEmit` (only if `tsconfig.json` exists), then, if `package.json` lists Vitest, `vitest related --run` on changed + untracked source files (the full suite is CI's job). A docs-only change skips cleanly. On failure it emits a `block` decision with the tail of the output, forcing a fix before completion, and records the failing step + last 20 output lines to the verify telemetry event. 300s timeout; guards against infinite Stop-hook loops.
 
 Complementing the hooks, the template's `settings.json` sets **permission** policy:
@@ -501,7 +503,7 @@ The kit ships a set of skills (loaded automatically by Claude when relevant) and
 
 ### Skills (`skills/` · `template/.claude/skills/`)
 
-**Workflow skills** — ported from the reference project (pick-tour) and generalized. Project facts come from the template `CLAUDE.md` sections "Design system", "Source of truth", "Issue tracking" and "Git workflow".
+**Workflow skills** — ported from the reference project (pick-tour) and generalized. Project facts come from the template `CLAUDE.md` sections "Design system", "Public web surface", "Source of truth", "Issue tracking" and "Git workflow".
 
 | Skill | What it covers | Origin |
 |-------|----------------|--------|
@@ -511,6 +513,7 @@ The kit ships a set of skills (loaded automatically by Claude when relevant) and
 | `ui-prototype` | Throwaway UX prototype (one HTML file, real design tokens, state machine) published as an Artifact or gist and linked into the issue as the behavior spec — Epic Flow step 2 | pick-tour |
 | `ui-verify` | Post-implementation UI check: static token rules → computed WCAG contrast per theme → live Playwright at 375/768/1280 | pick-tour |
 | `test-guard` | Honest tests, cheap CI: `create` (coverage matrix → lowest trustworthy layer → `red-check.sh` proves each test can fail), `audit` (`test-smells.py`: tautological, disabled, commented, assertion-free, loosened gates; delete only with evidence), `optimize [--ultra]` (`ci-usage.py` billed minutes per job → blast-radius lanes + `ci-gate`, CI changes as proposals) | kit |
+| `launch-check` | Pre-launch "not vibe coded" checklist for the public web surface (MUST / CONDITIONAL / AVOID with Next.js recipes, brand-over-hallmark precedence, em dash limited in UI copy) plus a zero-dependency Node checker, `scripts/launch-check.mjs`: `static <dir>` for source tells and `live <baseUrl>` for status, metadata, canonicals, sitemap, OG, source maps and a soft-404 probe (optional `--browser` / `--lighthouse`). Defaults: first-load JS ≤ 200 KB gzip per route, Lighthouse Performance ≥ 90. Fires at review-gate item (f); the result goes into the PR as a "Launch readiness" table | kit |
 | `project-docs` | The 8 docs an agent needs before coding — PRD, DESIGN_SYSTEM, ARCHITECTURE, DATABASE, SECURITY, CODE_STYLE, TESTING, AGENTS — as numbered-section markdown templates (`init`/`fill`/`check`), plus `build-docs-viewer.py`: one HTML page with a file tree, completion progress, open-placeholder counts and rendered mermaid | kit |
 | `e2e-visual-proof` | Camera for the L-tier e2e pass: step screenshots (desktop/phone/both) → fix visible UI bugs → one self-contained proof page (`build-proof-page.py`, `"gif": true` adds a looping walkthrough GIF per viewport) for the PR | pick-tour |
 | `grill-me` | Before planning an M/L feature: ask every open decision in rounds, each with a recommended answer; facts go to `code-scout`, only decisions reach the user; locked answers land in the plan/spec | pick-tour |

@@ -42,6 +42,14 @@ _Read by `ui-verify` and `ui-prototype`._
 - Themes / variants a shared component must pass under: <e.g. light + dark, or each brand theme>
 - Prohibitions: <e.g. no hardcoded colors, no raw palette classes — or point to `.claude/rules/ui-design.md`>
 
+## Public web surface
+_Read by `launch-check`._
+- Production URL: <https://…>
+- Public routes: <e.g. /, /pricing, /blog/**>
+- Private routes (noindex): <e.g. /app/**, /admin/**>
+- Budget overrides: <default: first-load JS ≤ 200 KB gzip per route, Lighthouse Performance ≥ 90>
+- Business type for structured data: <Organization | LocalBusiness | …>
+
 ## Source of truth
 _Read by `context-checkpoint`, `add-bug-to-github`, `github-issue-flow`._
 - Feature reference doc: <e.g. `docs/PROJECT-SOURCE-OF-TRUTH.md` — delete this section if none>
@@ -54,7 +62,7 @@ _Read by `github-issue-flow`, `add-bug-to-github`, `fix-from-github`, `ui-protot
 - Severity labels: `severity:critical|high|medium|low` · optional scope labels: <e.g. `area:<name>`>
 
 ## Skills & companion plugins
-- Workflow skills (`.claude/skills/`): `worktree-dev`, `git-workflow`, `context-checkpoint`, `ui-prototype`, `ui-verify`, `github-issue-flow`, `add-bug-to-github`, `fix-from-github`, `conventions`.
+- Workflow skills (`.claude/skills/`): `worktree-dev`, `git-workflow`, `context-checkpoint`, `ui-prototype`, `ui-verify`, `launch-check`, `github-issue-flow`, `add-bug-to-github`, `fix-from-github`, `conventions`.
 - Best-practice skills: `frontend-design`, `hallmark`, `responsive-design`, `accessibility`, `seo`, `react-best-practices`, `composition-patterns`, `typescript-advanced-types`, `tailwind-css-patterns`, `nodejs-best-practices`, `nodejs-backend-patterns`, `playwright-best-practices`, `firebase-best-practices`, `payment-integration`, `stripe-best-practices`, `upgrade-stripe`, `i18n-best-practices`, `archify` (diagrams).
 - Domain skills from the kit's reference project (tournament apps on Firebase): `roster-import`, `firestore-config-edit`, `e2e-flow` — delete them if they don't apply. Claude loads skills automatically when relevant.
 - Next.js ships its own agent knowledge from 16.3 (`node_modules/next/dist/docs/` + the `AGENTS.md`/`CLAUDE.md` rules `next dev` generates); the kit no longer bundles `next-best-practices` (retired upstream, no license). Cache Components workflow skills: `npx skills add vercel/next.js`. Upgrades: `npx @next/codemod@latest upgrade`.
