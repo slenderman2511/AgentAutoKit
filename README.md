@@ -30,7 +30,7 @@ The workflow itself is ported (and generalized) from the kit's reference project
 
 ## Product at a glance
 
-AgentAutoKit is a drop-in `.claude/` configuration. Once installed into a project, typing `/init-kit <task>` starts a coordinated pipeline: think → size (S/M/L) → (spec + `spec-reviewer`, L only) → implement → (debug) → test → review, with four hooks acting as a safety net on every edit, every `gh pr create`, and every attempt to finish. The playbook itself — task sizing, worktree-first discipline, model routing — lives in `.claude/rules/*.md`, auto-loaded by Claude Code.
+AgentAutoKit is a drop-in `.claude/` configuration. Once installed into a project, typing `/init-kit <task>` starts a coordinated pipeline: think → size (S/M/L) → (spec + `spec-reviewer`, L only) → implement → (debug) → test → review, with five hooks acting as a safety net on every edit, every `gh pr create` / `git push`, and every attempt to finish. The playbook itself — task sizing, worktree-first discipline, model routing — lives in `.claude/rules/*.md`, auto-loaded by Claude Code.
 
 The moving parts:
 
@@ -38,11 +38,11 @@ The moving parts:
 |------|------------|----------------|
 | **Agents** | 10 specialists with scoped tools, model tier + effort | `agents/` (plugin) · `template/.claude/agents/` |
 | **Playbook** | Working discipline, Task Sizing S/M/L, model routing, orchestrator rules | `.claude/rules/workflow.md` (+ `epic-flow.md`, `general.md`) — template only, auto-loaded |
-| **Guardrails** | 4 shell hooks: block unsafe edits, remind the review gate before a PR, gate un-verified finishes | `hooks/` · `template/.claude/hooks/` |
+| **Guardrails** | 5 shell hooks: block unsafe edits, block PRs off the integration branch and pushes to protected branches, remind the review gate before a PR, gate un-verified finishes | `hooks/` · `template/.claude/hooks/` |
 | **Telemetry & tuning** | Per-model speed/cost + fit scoring that feeds routing back into itself | `scripts/` + `SubagentStop` hook |
 | **Status line** | Live view of which agents are running (agent-panel rows + bottom bar) | `scripts/*statusline.sh` + `subagentStatusLine`/`statusLine` |
 | **Commands** | `/init-kit` (entry), `/kit-stats` (scorecard), `/kit-tune` (re-allocate) | `commands/` · `template/.claude/commands/` |
-| **Skills** | 33 auto-loaded skills: workflow skills from the reference project, framework best practices, domain workflows | `skills/` · `template/.claude/skills/` |
+| **Skills** | 34 auto-loaded skills: workflow skills from the reference project, framework best practices, domain workflows | `skills/` · `template/.claude/skills/` |
 | **Companion plugins** | 10 plugins declared for the whole team via `enabledPlugins` | `template/.claude/settings.json` |
 | **Installer** | Idempotent merge-aware `init.sh` — installs, upgrades, never clobbers | `scripts/init.sh` |
 
@@ -170,12 +170,13 @@ Every agent reads `CLAUDE.md` + `.claude/rules/` for project conventions and ret
 | `/kit-stats` | Aggregates telemetry into a scorecard: per-model p50/p95 duration + cost (incl. cache tokens), per-(agent, tier) fit score with off-pin runs flagged, pipeline health (verify pass rate, review rounds per PR, PRs opened without review). |
 | `/kit-tune [--apply]` | Proposes (dry-run) or applies model-tier promotions/demotions from measured fit, guarded by `min_samples`. |
 
-### The guardrail hooks (5)
+### The guardrail hooks (6)
 
 | Hook | Event | Enforcement |
 |------|-------|-------------|
 | `protect-files.sh` | `PreToolUse` (Edit/Write/MultiEdit) | Blocks edits to `.env*`, secrets, keys, CI workflows, migrations. |
 | `test-guard.sh` | `PreToolUse` (Edit/Write/MultiEdit) | Non-blocking: when an edit to a test/test-config/workflow file ADDS a skip/only, a commented-out test, an always-true assertion, retries or `\|\| true`, injects a reminder telling the agent to justify or undo it. Never prompts (no stalls); CI's `test-smells.py diff` is the hard stop. |
+| `git-guard.sh` | `PreToolUse` (Bash) | Blocks `gh pr create` that would not base the integration branch (`Integration branch:` in `CLAUDE.md`, else `dev` when origin has one; the `--head <integration> --base main` promotion PR is allowed) and any `git push` to the integration branch, `main` or `master` (`HEAD:dev`, `+main`, `--delete`, `--all`, a bare push from them). Repos with no integration branch are not enforced; `KIT_GIT_GUARD=off` disables it. |
 | `review-gate.sh` | `PreToolUse` + `PostToolUse` (Bash) | Non-blocking: before `gh pr create`, injects the mandatory review-gate checklist as additional context (ported from pick-tour); after it, logs a `pr` event when the output carries the new PR's URL, so `/kit-stats` can count review rounds per PR. |
 | `verify.sh` | `Stop` | Runs `tsc --noEmit` only if `tsconfig.json` exists, and Vitest only if `package.json` lists it — as `vitest related --run` on changed + untracked source files (the full suite is CI's job). A docs-only change skips cleanly. Blocks finishing on failure; a failed run records the failing step + last 20 output lines. 300s timeout. |
 | `metrics-subagent.sh` | `SubagentStop` | Measures every subagent run (tokens incl. cache, duration per sidechain), tagged with its agent name from `agent_type`, into the main checkout's `events.jsonl`. Never blocks. |
@@ -189,9 +190,9 @@ Hooks are the kit's enforcement layer — CLAUDE.md only reminds; hooks make rul
 - Fit scored per (agent, tier) so promotions are evaluated on fresh evidence; demotion is opt-in and requires a real escalation signal.
 - Auto-tune edits one reversible `model:` frontmatter line, dry-run by default, human-reviewed diff.
 
-### The 33 skills (details [below](#bundled-skills--companion-plugins))
+### The 34 skills (details [below](#bundled-skills--companion-plugins))
 
-- **Workflow (11):** `worktree-dev` · `git-workflow` · `context-checkpoint` · `ui-prototype` · `ui-verify` · `e2e-visual-proof` · `test-guard` · `github-issue-flow` · `add-bug-to-github` · `fix-from-github` · `conventions`
+- **Workflow (12):** `worktree-dev` · `git-workflow` · `context-checkpoint` · `grill-me` · `ui-prototype` · `ui-verify` · `e2e-visual-proof` · `test-guard` · `github-issue-flow` · `add-bug-to-github` · `fix-from-github` · `conventions`
 - **Best practices (18):** `frontend-design` · `hallmark` · `responsive-design` · `accessibility` · `seo` · `react-best-practices` · `composition-patterns` · `typescript-advanced-types` · `tailwind-css-patterns` · `nodejs-best-practices` · `nodejs-backend-patterns` · `playwright-best-practices` · `firebase-best-practices` · `payment-integration` · `stripe-best-practices` · `upgrade-stripe` · `i18n-best-practices` · `archify`
 - **Domain (3, tournament apps on Firebase):** `roster-import` · `firestore-config-edit` · `e2e-flow`
 - **Media (1):** `voice-clone`
@@ -450,7 +451,7 @@ sequenceDiagram
 
 ## Guardrails
 
-Four hooks act as a safety net regardless of what any agent decides — two block, two remind. (A fourth, `metrics-subagent.sh`, is telemetry-only, and `review-gate.sh` also logs each opened PR; see [Self-tuning](#self-tuning-measure--score--re-allocate).)
+Five hooks act as a safety net regardless of what any agent decides — three block, two remind. (A sixth, `metrics-subagent.sh`, is telemetry-only, and `review-gate.sh` also logs each opened PR; see [Self-tuning](#self-tuning-measure--score--re-allocate).)
 
 ```mermaid
 flowchart LR
@@ -463,7 +464,10 @@ flowchart LR
   end
   subgraph PR["On every Bash command"]
     direction TB
-    B1["PreToolUse"] --> RG["review-gate.sh"]
+    B1["PreToolUse"] --> GG["git-guard.sh"]
+    GG --> GD{"gh pr create off the integration branch,<br/>or git push to it / main / master?"}
+    GD -->|yes| GBLK["exit 2 — blocked"]
+    GD -->|no| RG["review-gate.sh"]
     RG --> RC{"command contains<br/>'gh pr create'?"}
     RC -->|yes| REM["inject review-gate<br/>reminder (non-blocking)"]
     RC -->|no| PASS["no-op"]
@@ -479,6 +483,7 @@ flowchart LR
 
 - **`protect-files.sh`** (PreToolUse on `Edit|Write|MultiEdit`) — blocks writes to `.env*`, `*.pem`, `*.key`, `secrets/`, `.github/workflows/`, and `migrations/` (matched whether the path is absolute or root-relative). Exits `2`, and its stderr is fed back to the agent so it knows *why* it was blocked.
 - **`test-guard.sh`** (PreToolUse on `Edit|Write|MultiEdit`) — on test files, test-runner config and workflows, compares the new text with the text it replaces and, when the edit adds a way to silence a test: `.skip`/`.only`/`xit`/`markTestSkipped`, a commented-out test, `expect(true).toBe(true)`/`assertTrue(true)`, retries, `--passWithNoTests`, `|| true` after a test command or `continue-on-error`. injects `additionalContext` telling the agent to get approval with a reason or undo it. Non-blocking by design — a permission prompt stalls long agent runs; the hard stop is `test-smells.py diff` as a CI step at PR time. Pairs with the `test-guard` skill.
+- **`git-guard.sh`** (PreToolUse on `Bash`) — the git workflow as a hook instead of a sentence: blocks a `gh pr create` that would not base the integration branch and any `git push` that targets the integration branch, `main` or `master`. Exits `2` with the reason; the release flow's own scripts are not affected (the hook only sees the command the agent typed).
 - **`review-gate.sh`** (PreToolUse on `Bash`) — when a command contains `gh pr create`, injects the mandatory review-gate checklist as additional context. Non-blocking: it reminds, the agent still decides. Ported from pick-tour, the kit's reference project. The same script on `PostToolUse` logs the opened PR (telemetry only).
 - **`verify.sh`** (Stop) — before an agent is allowed to finish, runs `tsc --noEmit` (only if `tsconfig.json` exists), then, if `package.json` lists Vitest, `vitest related --run` on changed + untracked source files (the full suite is CI's job). A docs-only change skips cleanly. On failure it emits a `block` decision with the tail of the output, forcing a fix before completion, and records the failing step + last 20 output lines to the verify telemetry event. 300s timeout; guards against infinite Stop-hook loops.
 
@@ -506,7 +511,8 @@ The kit ships a set of skills (loaded automatically by Claude when relevant) and
 | `ui-prototype` | Throwaway UX prototype (one HTML file, real design tokens, state machine) published as an Artifact or gist and linked into the issue as the behavior spec — Epic Flow step 2 | pick-tour |
 | `ui-verify` | Post-implementation UI check: static token rules → computed WCAG contrast per theme → live Playwright at 375/768/1280 | pick-tour |
 | `test-guard` | Honest tests, cheap CI: `create` (coverage matrix → lowest trustworthy layer → `red-check.sh` proves each test can fail), `audit` (`test-smells.py`: tautological, disabled, commented, assertion-free, loosened gates; delete only with evidence), `optimize [--ultra]` (`ci-usage.py` billed minutes per job → blast-radius lanes + `ci-gate`, CI changes as proposals) | kit |
-| `e2e-visual-proof` | Camera for the L-tier e2e pass: step screenshots (desktop/phone/both) → fix visible UI bugs → one self-contained proof page (`build-proof-page.py`) for the PR | pick-tour |
+| `e2e-visual-proof` | Camera for the L-tier e2e pass: step screenshots (desktop/phone/both) → fix visible UI bugs → one self-contained proof page (`build-proof-page.py`, `"gif": true` adds a looping walkthrough GIF per viewport) for the PR | pick-tour |
+| `grill-me` | Before planning an M/L feature: ask every open decision in rounds, each with a recommended answer; facts go to `code-scout`, only decisions reach the user; locked answers land in the plan/spec | pick-tour |
 | `github-issue-flow` | Change request → labeled issue before code → branch/PR linked → manual close after merge when PRs base a non-default branch | pick-tour |
 | `add-bug-to-github` | File a known bug into the `ai` work queue with kind/severity labels, after de-duplication | pick-tour |
 | `fix-from-github` | Drain the `ai` queue: claim lock, investigate, per-ticket plan gate, fix through the pipeline, draft PR — never merge | pick-tour |

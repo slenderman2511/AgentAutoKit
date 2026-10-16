@@ -13,7 +13,9 @@ Task sizing (below) picks the *process weight*; this picks the *mindset*.
    state the core assumptions your approach rests on. If the instruction is ambiguous, or several
    valid implementation paths exist, **STOP and ask the user** (use `AskUserQuestion`) — do not guess
    or pick silently. Escalate the *model* when the root cause is unclear; ask the *user* when the
-   requirement is unclear.
+   requirement is unclear. Several open decisions on a feature bigger than a day (M/L) → run the
+   `grill-me` skill: the whole frontier per round, each question with a recommended answer, facts
+   looked up by `code-scout` instead of asked.
 2. **Simplicity first (YAGNI).** Write the minimum code that satisfies the stated task. No
    speculative features, no unrequested abstractions, no defensive boilerplate for edge cases nobody
    asked about. Mirror the surrounding code's existing patterns instead of inventing new ones.
