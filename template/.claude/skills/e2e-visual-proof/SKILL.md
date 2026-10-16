@@ -64,6 +64,10 @@ Tile the shots into a grid and read it. Two buckets:
    PROVES), API `table`, honest `notes`; optional `ui` to localize the page chrome.
 2. `python3 .claude/skills/e2e-visual-proof/build-proof-page.py manifest.json <shots_dir> out.html`
    (needs Pillow) → one self-contained HTML.
+   **Visible UI change or release?** Add `"gif": true` to the manifest: the same ordered shots become
+   one looping GIF per viewport — a "Walkthrough" section at the top of the page (first step shown
+   instead for reduced-motion viewers) plus `<out>--<viewport>.gif` next to the page. Reviewers and
+   release notes see the change without running it; drop the GIF into the PR body too.
 3. Publish it where reviewers can open it (Claude Artifact, a secret gist, or attach the file) and
    link it in the PR body + the issue close-out. Never commit the shots or page into `src/`.
 
@@ -80,3 +84,4 @@ Tile the shots into a grid and read it. Two buckets:
 | Scenario 1 fails on 2nd run ("already registered") | `--down` → `--up` |
 | Listing a visible UI bug in the notes and publishing | Step 3: fix → review → re-shoot |
 | Captions describe the screen | Captions state what the step proves |
+| UI release shipped as a wall of stills | `"gif": true` — one looping walkthrough per viewport |
