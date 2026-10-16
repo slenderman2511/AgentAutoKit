@@ -95,7 +95,7 @@
       "id": "hooks",
       "type": "security",
       "label": "Guardrail hooks",
-      "sublabel": "protect · review-gate · verify",
+      "sublabel": "protect · git-guard · review-gate · verify",
       "pos": [
         1010,
         500

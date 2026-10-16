@@ -19,6 +19,9 @@ manifest.json:
   "steps": [{"id": "01-user-register", "actor": "User", "title": "…", "caption": "what this PROVES"}],
   "table": {"title": "API scenarios (L2)", "columns": ["#", "Scenario", "HTTP", "Result", ""],
             "rows": [["S1", "…", "400", "…", "PASS"]]},   # HTTP cell gets a 2xx/4xx/5xx chip, PASS/FAIL colored
+  "gif": true,                                   # optional: also stitch the steps into an animated GIF per viewport —
+                                                 #   embedded as a "Walkthrough" section + written next to out.html
+                                                 #   as <out>--<viewport>.gif for release notes / the PR body
   "ui": {"steps_heading": "…"},                 # optional: override page chrome strings (see UI below)
   "notes": ["Honest caveats: hidden dev overlay + why, UX oddities seen, data cleaned."]
 }
@@ -28,8 +31,10 @@ import base64, html, io, json, os, sys
 from PIL import Image
 
 WIDTH = {"desktop": 1100, "tablet": 640, "mobile": 420}
+GIF_WIDTH = {"desktop": 960, "tablet": 560, "mobile": 360}
+FOLD = {"desktop": 0.625, "tablet": 1.33, "mobile": 2.17}  # viewport height / width: frames show what was on screen
 ACTOR_CLASSES = ["a1", "a2", "a3", "a4"]
-UI = {"steps_heading": "UI flow, step by step", "zoom_hint": "Click a shot to zoom.",
+UI = {"walkthrough": "Walkthrough", "steps_heading": "UI flow, step by step", "zoom_hint": "Click a shot to zoom.",
       "notes_heading": "Notes for the reviewer", "zoom": "Zoom step", "close": "Close"}
 
 
@@ -45,6 +50,27 @@ def encode(path, viewport):
     return base64.b64encode(buf.getvalue()).decode(), im.size
 
 
+def make_gif(paths, viewport, out_path):
+    """Steps in order, 1.6 s each, the last one held 3 s, looping. Returns base64."""
+    frames = []
+    for p in paths:
+        im = Image.open(p).convert("RGB")
+        im = im.crop((0, 0, im.width, min(im.height, int(im.width * FOLD[viewport]))))  # a full-page shot would stretch every frame
+        im.thumbnail((GIF_WIDTH[viewport], 2000))
+        frames.append(im)
+    w, h = max(f.width for f in frames), max(f.height for f in frames)
+    padded = []
+    for f in frames:  # one canvas size for every frame (thumbnails can differ in height)
+        c = Image.new("RGB", (w, h), "white")
+        c.paste(f, (0, 0))
+        padded.append(c)
+    buf = io.BytesIO()
+    padded[0].save(buf, "GIF", save_all=True, append_images=padded[1:], loop=0, optimize=True,
+                   duration=[1600] * (len(padded) - 1) + [3000])
+    open(out_path, "wb").write(buf.getvalue())
+    return base64.b64encode(buf.getvalue()).decode()
+
+
 def find_shot(shots, step_id, vp):
     for name in (f"{step_id}--{vp}.png", f"{step_id}.png" if vp == "desktop" else None):
         if name and os.path.exists(os.path.join(shots, name)):
@@ -57,7 +83,7 @@ def main(manifest_path, shots, out):
     UI.update(m.get("ui", {}))
     vps = m.get("viewports") or ["desktop"]
     actors = {}
-    missing, cards = [], []
+    missing, cards, ordered = [], [], {vp: [] for vp in vps}
     for i, s in enumerate(m["steps"], 1):
         cls = actors.setdefault(s.get("actor", ""), ACTOR_CLASSES[len(actors) % len(ACTOR_CLASSES)])
         figs = []
@@ -66,6 +92,7 @@ def main(manifest_path, shots, out):
             if not p:
                 missing.append(f"{s['id']}--{vp}.png")
                 continue
+            ordered[vp].append(p)
             b64, (w, h) = encode(p, vp)
             figs.append(
                 f'<button type="button" class="thumb {vp}" aria-label="{UI["zoom"]} {i} ({vp})">'
@@ -78,6 +105,17 @@ def main(manifest_path, shots, out):
         )
     if missing:
         sys.exit("missing screenshots:\n  " + "\n  ".join(missing))
+
+    walk = ""
+    if m.get("gif") and m["steps"]:
+        figs = []
+        for vp in vps:
+            gif = make_gif(ordered[vp], vp, f"{os.path.splitext(out)[0]}--{vp}.gif")
+            still, _ = encode(ordered[vp][0], vp)  # reduced-motion viewers get the first step, not the animation
+            figs.append(f'<figure class="gif {vp}"><picture><source media="(prefers-reduced-motion: reduce)" '
+                        f'srcset="data:image/jpeg;base64,{still}"><img src="data:image/gif;base64,{gif}" '
+                        f'alt="{esc(UI["walkthrough"])} — {vp}"></picture></figure>')
+        walk = f'<h2>{esc(UI["walkthrough"])}</h2><div class="walk">{"".join(figs)}</div>'
 
     def pill(x):
         label = esc(x["label"])
@@ -131,6 +169,7 @@ h1,h2,h3{{font-family:"Space Grotesk",system-ui,sans-serif;letter-spacing:-.02em
 .who{{font-size:12px;font-weight:700;border-radius:6px;padding:2px 8px}}.a1{{background:var(--okbg);color:var(--ok)}}.a2{{background:var(--a2bg);color:var(--a2)}}.a3{{background:var(--a3bg);color:var(--a3)}}.a4{{background:var(--a4bg);color:var(--a4)}}
 .tbl{{overflow-x:auto;background:var(--card);border-radius:14px}}table{{width:100%;min-width:720px;border-collapse:collapse;font-size:14px;font-variant-numeric:tabular-nums}}th,td{{text-align:left;padding:10px 14px;vertical-align:top;color:var(--ink)}}th{{color:var(--mute);font-weight:500;background:var(--rec)}}
 .code{{font-family:ui-monospace,Menlo,monospace;font-weight:700;border-radius:6px;padding:1px 7px}}.c2{{background:var(--okbg);color:var(--ok)}}.c4{{background:var(--warnbg);color:var(--warn)}}.c5{{background:var(--badbg);color:var(--bad)}}.pass{{color:var(--ok);font-weight:700}}.fail{{color:var(--bad);font-weight:700}}
+.walk{{display:flex;flex-wrap:wrap;gap:16px;align-items:flex-start}}.walk figure{{margin:0}}.walk img{{display:block;max-width:100%;height:auto;border-radius:10px}}.gif.desktop{{flex:3 1 480px}}.gif.mobile,.gif.tablet{{flex:1 1 200px;max-width:360px}}
 .notes{{background:var(--card);color:var(--ink);border-radius:14px;padding:6px 20px 6px 36px}}.notes li{{margin:10px 0}}
 dialog{{border:0;padding:0;background:transparent;max-width:96vw;max-height:94vh}}dialog::backdrop{{background:rgba(0,0,0,.82)}}dialog img{{max-width:96vw;max-height:86vh;display:block;border-radius:10px;margin:0 auto}}dialog p{{color:#fff;margin:8px 0 0;font-size:14px;text-align:center}}
 .close{{position:fixed;top:12px;right:12px;min-width:44px;min-height:44px;border-radius:999px;border:0;background:#fff;color:#14161C;font-size:20px;cursor:pointer;touch-action:manipulation}}
@@ -141,6 +180,7 @@ dialog{{border:0;padding:0;background:transparent;max-width:96vw;max-height:94vh
 <p class="sub">{esc(m.get("subtitle", ""))}</p>
 <div class="meta">{meta}<span class="pill">{vp_label}</span></div>
 <div class="kpis">{kpis}</div>
+{walk}
 <h2>{UI['steps_heading']}</h2>
 <p class="sub" style="margin-top:-6px">{UI['zoom_hint']}</p>
 <div class="flow">{"".join(cards)}</div>
