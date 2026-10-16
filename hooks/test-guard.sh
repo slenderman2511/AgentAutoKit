@@ -1,9 +1,10 @@
 #!/bin/bash
-# PreToolUse hook (Edit|Write|MultiEdit): an edit that ADDS a way to silence a test — skip/only,
-# a commented-out test, an always-true assertion, retries or `|| true` — is held for the user's
-# approval instead of going through silently. Existing occurrences are not re-flagged: only what the
-# edit adds (count in new text > count in replaced text) triggers the prompt.
-# Output: permissionDecision "ask" JSON on stdout. Exit 0 always (never blocks on its own errors).
+# PreToolUse hook (Edit|Write|MultiEdit), NON-BLOCKING: when an edit ADDS a way to silence a test —
+# skip/only, a commented-out test, an always-true assertion, retries or `|| true` — the edit goes
+# through and the agent gets a reminder in its context to justify it or undo it. It never prompts the
+# user (that stalls long runs); the hard stop is `test-smells.py diff` in CI at PR time. Existing
+# occurrences are not re-flagged: only what the edit adds (count in new > count in replaced text).
+# Output: additionalContext JSON on stdout. Exit 0 always.
 INPUT=$(cat)
 command -v jq >/dev/null 2>&1 || { echo "test-guard: jq not found, hook skipped" >&2; exit 0; }
 
@@ -45,6 +46,6 @@ check "loosens the gate (retries, passWithNoTests, || true, continue-on-error)" 
 
 [ -z "$REASONS" ] && exit 0
 
-MSG="test-guard: this edit to $FILE $REASONS. Allowed only with the user's explicit approval and a stated reason (why the test is wrong/flaky, and the tracking issue). If the test fails, investigate and fix the code or update the test to the changed contract instead."
-jq -n --arg r "$MSG" '{hookSpecificOutput: {hookEventName: "PreToolUse", permissionDecision: "ask", permissionDecisionReason: $r}}'
+MSG="test-guard: this edit to $FILE $REASONS. That needs the user's explicit approval and a stated reason (why the test is wrong/flaky + tracking issue) — otherwise undo it: investigate the failure and fix the code, or update the test to the changed contract. CI (test-smells.py diff) will flag it on the PR."
+jq -n --arg r "$MSG" '{hookSpecificOutput: {hookEventName: "PreToolUse", additionalContext: $r}}'
 exit 0

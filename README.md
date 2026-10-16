@@ -175,7 +175,7 @@ Every agent reads `CLAUDE.md` + `.claude/rules/` for project conventions and ret
 | Hook | Event | Enforcement |
 |------|-------|-------------|
 | `protect-files.sh` | `PreToolUse` (Edit/Write/MultiEdit) | Blocks edits to `.env*`, secrets, keys, CI workflows, migrations. |
-| `test-guard.sh` | `PreToolUse` (Edit/Write/MultiEdit) | Holds for the user's approval any edit to a test/test-config/workflow file that ADDS a skip/only, a commented-out test, an always-true assertion, retries or `\|\| true`. Existing occurrences are not re-flagged. |
+| `test-guard.sh` | `PreToolUse` (Edit/Write/MultiEdit) | Non-blocking: when an edit to a test/test-config/workflow file ADDS a skip/only, a commented-out test, an always-true assertion, retries or `\|\| true`, injects a reminder telling the agent to justify or undo it. Never prompts (no stalls); CI's `test-smells.py diff` is the hard stop. |
 | `review-gate.sh` | `PreToolUse` + `PostToolUse` (Bash) | Non-blocking: before `gh pr create`, injects the mandatory review-gate checklist as additional context (ported from pick-tour); after it, logs a `pr` event when the output carries the new PR's URL, so `/kit-stats` can count review rounds per PR. |
 | `verify.sh` | `Stop` | Runs `tsc --noEmit` only if `tsconfig.json` exists, and Vitest only if `package.json` lists it — as `vitest related --run` on changed + untracked source files (the full suite is CI's job). A docs-only change skips cleanly. Blocks finishing on failure; a failed run records the failing step + last 20 output lines. 300s timeout. |
 | `metrics-subagent.sh` | `SubagentStop` | Measures every subagent run (tokens incl. cache, duration per sidechain), tagged with its agent name from `agent_type`, into the main checkout's `events.jsonl`. Never blocks. |
@@ -450,7 +450,7 @@ sequenceDiagram
 
 ## Guardrails
 
-Four hooks act as a safety net regardless of what any agent decides — two block, one asks the user, one reminds. (A fourth, `metrics-subagent.sh`, is telemetry-only, and `review-gate.sh` also logs each opened PR; see [Self-tuning](#self-tuning-measure--score--re-allocate).)
+Four hooks act as a safety net regardless of what any agent decides — two block, two remind. (A fourth, `metrics-subagent.sh`, is telemetry-only, and `review-gate.sh` also logs each opened PR; see [Self-tuning](#self-tuning-measure--score--re-allocate).)
 
 ```mermaid
 flowchart LR
@@ -478,7 +478,7 @@ flowchart LR
 ```
 
 - **`protect-files.sh`** (PreToolUse on `Edit|Write|MultiEdit`) — blocks writes to `.env*`, `*.pem`, `*.key`, `secrets/`, `.github/workflows/`, and `migrations/` (matched whether the path is absolute or root-relative). Exits `2`, and its stderr is fed back to the agent so it knows *why* it was blocked.
-- **`test-guard.sh`** (PreToolUse on `Edit|Write|MultiEdit`) — on test files, test-runner config and workflows, compares the new text with the text it replaces and returns `permissionDecision: "ask"` when the edit adds a way to silence a test: `.skip`/`.only`/`xit`/`markTestSkipped`, a commented-out test, `expect(true).toBe(true)`/`assertTrue(true)`, retries, `--passWithNoTests`, `|| true` after a test command or `continue-on-error`. The user approves or rejects in the normal permission prompt; the reason tells the agent to investigate instead. Pairs with the `test-guard` skill.
+- **`test-guard.sh`** (PreToolUse on `Edit|Write|MultiEdit`) — on test files, test-runner config and workflows, compares the new text with the text it replaces and, when the edit adds a way to silence a test: `.skip`/`.only`/`xit`/`markTestSkipped`, a commented-out test, `expect(true).toBe(true)`/`assertTrue(true)`, retries, `--passWithNoTests`, `|| true` after a test command or `continue-on-error`. injects `additionalContext` telling the agent to get approval with a reason or undo it. Non-blocking by design — a permission prompt stalls long agent runs; the hard stop is `test-smells.py diff` as a CI step at PR time. Pairs with the `test-guard` skill.
 - **`review-gate.sh`** (PreToolUse on `Bash`) — when a command contains `gh pr create`, injects the mandatory review-gate checklist as additional context. Non-blocking: it reminds, the agent still decides. Ported from pick-tour, the kit's reference project. The same script on `PostToolUse` logs the opened PR (telemetry only).
 - **`verify.sh`** (Stop) — before an agent is allowed to finish, runs `tsc --noEmit` (only if `tsconfig.json` exists), then, if `package.json` lists Vitest, `vitest related --run` on changed + untracked source files (the full suite is CI's job). A docs-only change skips cleanly. On failure it emits a `block` decision with the tail of the output, forcing a fix before completion, and records the failing step + last 20 output lines to the verify telemetry event. 300s timeout; guards against infinite Stop-hook loops.
 
