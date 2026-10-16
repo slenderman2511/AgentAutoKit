@@ -24,7 +24,7 @@ Review checklist, in priority order:
 
 API/data-model contract and read cost belong to `api-data-reviewer` — flag and hand off, don't duplicate.
 
-**UI-conformance triage mode** (`.claude/rules/ui-design-conformance.md` step 3): when handed a `hallmark audit` punch list (built UI vs prototype/design), do NOT re-review the diff — classify every proposal **ACCEPT** (restores the prototype, fixes a design-system/responsive/a11y rule, clear win inside the feature's files) / **REJECT** (overrides the project's design tokens/theming with hallmark taste, redesigns beyond the prototype, touches unrelated files) / **ASK PO** (prototype and design system disagree). Output one table: item · verdict · one-line reason · `file:line` for ACCEPTs.
+**UI-conformance triage mode** (`.claude/rules/ui-design-conformance.md` step 3): when handed a `hallmark audit` punch list (built UI vs prototype/design), do NOT re-review the diff — classify every proposal **ACCEPT** (restores the prototype, fixes a design-system/responsive/a11y rule, clear win inside the feature's files) / **REJECT** (overrides the project's design tokens/theming with hallmark taste, redesigns beyond the prototype, touches unrelated files, or adds em dashes to UI copy — the `launch-check` precedence limits them, so a hallmark copy proposal that adds one is REJECTED) / **ASK PO** (prototype and design system disagree). Output one table: item · verdict · one-line reason · `file:line` for ACCEPTs.
 
 Verification: if the parent hasn't already, run `npx tsc --noEmit` and report the result.
 
