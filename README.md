@@ -42,7 +42,7 @@ The moving parts:
 | **Telemetry & tuning** | Per-model speed/cost + fit scoring that feeds routing back into itself | `scripts/` + `SubagentStop` hook |
 | **Status line** | Live view of which agents are running (agent-panel rows + bottom bar) | `scripts/*statusline.sh` + `subagentStatusLine`/`statusLine` |
 | **Commands** | `/init-kit` (entry), `/kit-stats` (scorecard), `/kit-tune` (re-allocate) | `commands/` · `template/.claude/commands/` |
-| **Skills** | 34 auto-loaded skills: workflow skills from the reference project, framework best practices, domain workflows | `skills/` · `template/.claude/skills/` |
+| **Skills** | 35 auto-loaded skills: workflow skills from the reference project, framework best practices, domain workflows | `skills/` · `template/.claude/skills/` |
 | **Companion plugins** | 10 plugins declared for the whole team via `enabledPlugins` | `template/.claude/settings.json` |
 | **Installer** | Idempotent merge-aware `init.sh` — installs, upgrades, never clobbers | `scripts/init.sh` |
 
@@ -190,9 +190,9 @@ Hooks are the kit's enforcement layer — CLAUDE.md only reminds; hooks make rul
 - Fit scored per (agent, tier) so promotions are evaluated on fresh evidence; demotion is opt-in and requires a real escalation signal.
 - Auto-tune edits one reversible `model:` frontmatter line, dry-run by default, human-reviewed diff.
 
-### The 34 skills (details [below](#bundled-skills--companion-plugins))
+### The 35 skills (details [below](#bundled-skills--companion-plugins))
 
-- **Workflow (12):** `worktree-dev` · `git-workflow` · `context-checkpoint` · `grill-me` · `ui-prototype` · `ui-verify` · `e2e-visual-proof` · `test-guard` · `github-issue-flow` · `add-bug-to-github` · `fix-from-github` · `conventions`
+- **Workflow (13):** `worktree-dev` · `git-workflow` · `context-checkpoint` · `grill-me` · `ui-prototype` · `ui-verify` · `e2e-visual-proof` · `test-guard` · `project-docs` · `github-issue-flow` · `add-bug-to-github` · `fix-from-github` · `conventions`
 - **Best practices (18):** `frontend-design` · `hallmark` · `responsive-design` · `accessibility` · `seo` · `react-best-practices` · `composition-patterns` · `typescript-advanced-types` · `tailwind-css-patterns` · `nodejs-best-practices` · `nodejs-backend-patterns` · `playwright-best-practices` · `firebase-best-practices` · `payment-integration` · `stripe-best-practices` · `upgrade-stripe` · `i18n-best-practices` · `archify`
 - **Domain (3, tournament apps on Firebase):** `roster-import` · `firestore-config-edit` · `e2e-flow`
 - **Media (1):** `voice-clone`
@@ -511,6 +511,7 @@ The kit ships a set of skills (loaded automatically by Claude when relevant) and
 | `ui-prototype` | Throwaway UX prototype (one HTML file, real design tokens, state machine) published as an Artifact or gist and linked into the issue as the behavior spec — Epic Flow step 2 | pick-tour |
 | `ui-verify` | Post-implementation UI check: static token rules → computed WCAG contrast per theme → live Playwright at 375/768/1280 | pick-tour |
 | `test-guard` | Honest tests, cheap CI: `create` (coverage matrix → lowest trustworthy layer → `red-check.sh` proves each test can fail), `audit` (`test-smells.py`: tautological, disabled, commented, assertion-free, loosened gates; delete only with evidence), `optimize [--ultra]` (`ci-usage.py` billed minutes per job → blast-radius lanes + `ci-gate`, CI changes as proposals) | kit |
+| `project-docs` | The 8 docs an agent needs before coding — PRD, DESIGN_SYSTEM, ARCHITECTURE, DATABASE, SECURITY, CODE_STYLE, TESTING, AGENTS — as numbered-section markdown templates (`init`/`fill`/`check`), plus `build-docs-viewer.py`: one HTML page with a file tree, completion progress, open-placeholder counts and rendered mermaid | kit |
 | `e2e-visual-proof` | Camera for the L-tier e2e pass: step screenshots (desktop/phone/both) → fix visible UI bugs → one self-contained proof page (`build-proof-page.py`, `"gif": true` adds a looping walkthrough GIF per viewport) for the PR | pick-tour |
 | `grill-me` | Before planning an M/L feature: ask every open decision in rounds, each with a recommended answer; facts go to `code-scout`, only decisions reach the user; locked answers land in the plan/spec | pick-tour |
 | `github-issue-flow` | Change request → labeled issue before code → branch/PR linked → manual close after merge when PRs base a non-default branch | pick-tour |
