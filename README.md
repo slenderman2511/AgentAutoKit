@@ -42,7 +42,7 @@ The moving parts:
 | **Telemetry & tuning** | Per-model speed/cost + fit scoring that feeds routing back into itself | `scripts/` + `SubagentStop` hook |
 | **Status line** | Live view of which agents are running (agent-panel rows + bottom bar) | `scripts/*statusline.sh` + `subagentStatusLine`/`statusLine` |
 | **Commands** | `/init-kit` (entry), `/kit-stats` (scorecard), `/kit-tune` (re-allocate) | `commands/` · `template/.claude/commands/` |
-| **Skills** | 32 auto-loaded skills: workflow skills from the reference project, framework best practices, domain workflows | `skills/` · `template/.claude/skills/` |
+| **Skills** | 33 auto-loaded skills: workflow skills from the reference project, framework best practices, domain workflows | `skills/` · `template/.claude/skills/` |
 | **Companion plugins** | 10 plugins declared for the whole team via `enabledPlugins` | `template/.claude/settings.json` |
 | **Installer** | Idempotent merge-aware `init.sh` — installs, upgrades, never clobbers | `scripts/init.sh` |
 
@@ -170,11 +170,12 @@ Every agent reads `CLAUDE.md` + `.claude/rules/` for project conventions and ret
 | `/kit-stats` | Aggregates telemetry into a scorecard: per-model p50/p95 duration + cost (incl. cache tokens), per-(agent, tier) fit score with off-pin runs flagged, pipeline health (verify pass rate, review rounds per PR, PRs opened without review). |
 | `/kit-tune [--apply]` | Proposes (dry-run) or applies model-tier promotions/demotions from measured fit, guarded by `min_samples`. |
 
-### The guardrail hooks (4)
+### The guardrail hooks (5)
 
 | Hook | Event | Enforcement |
 |------|-------|-------------|
 | `protect-files.sh` | `PreToolUse` (Edit/Write/MultiEdit) | Blocks edits to `.env*`, secrets, keys, CI workflows, migrations. |
+| `test-guard.sh` | `PreToolUse` (Edit/Write/MultiEdit) | Holds for the user's approval any edit to a test/test-config/workflow file that ADDS a skip/only, a commented-out test, an always-true assertion, retries or `\|\| true`. Existing occurrences are not re-flagged. |
 | `review-gate.sh` | `PreToolUse` + `PostToolUse` (Bash) | Non-blocking: before `gh pr create`, injects the mandatory review-gate checklist as additional context (ported from pick-tour); after it, logs a `pr` event when the output carries the new PR's URL, so `/kit-stats` can count review rounds per PR. |
 | `verify.sh` | `Stop` | Runs `tsc --noEmit` only if `tsconfig.json` exists, and Vitest only if `package.json` lists it — as `vitest related --run` on changed + untracked source files (the full suite is CI's job). A docs-only change skips cleanly. Blocks finishing on failure; a failed run records the failing step + last 20 output lines. 300s timeout. |
 | `metrics-subagent.sh` | `SubagentStop` | Measures every subagent run (tokens incl. cache, duration per sidechain), tagged with its agent name from `agent_type`, into the main checkout's `events.jsonl`. Never blocks. |
@@ -188,9 +189,9 @@ Hooks are the kit's enforcement layer — CLAUDE.md only reminds; hooks make rul
 - Fit scored per (agent, tier) so promotions are evaluated on fresh evidence; demotion is opt-in and requires a real escalation signal.
 - Auto-tune edits one reversible `model:` frontmatter line, dry-run by default, human-reviewed diff.
 
-### The 32 skills (details [below](#bundled-skills--companion-plugins))
+### The 33 skills (details [below](#bundled-skills--companion-plugins))
 
-- **Workflow (10):** `worktree-dev` · `git-workflow` · `context-checkpoint` · `ui-prototype` · `ui-verify` · `e2e-visual-proof` · `github-issue-flow` · `add-bug-to-github` · `fix-from-github` · `conventions`
+- **Workflow (11):** `worktree-dev` · `git-workflow` · `context-checkpoint` · `ui-prototype` · `ui-verify` · `e2e-visual-proof` · `test-guard` · `github-issue-flow` · `add-bug-to-github` · `fix-from-github` · `conventions`
 - **Best practices (18):** `frontend-design` · `hallmark` · `responsive-design` · `accessibility` · `seo` · `react-best-practices` · `composition-patterns` · `typescript-advanced-types` · `tailwind-css-patterns` · `nodejs-best-practices` · `nodejs-backend-patterns` · `playwright-best-practices` · `firebase-best-practices` · `payment-integration` · `stripe-best-practices` · `upgrade-stripe` · `i18n-best-practices` · `archify`
 - **Domain (3, tournament apps on Firebase):** `roster-import` · `firestore-config-edit` · `e2e-flow`
 - **Media (1):** `voice-clone`
@@ -449,7 +450,7 @@ sequenceDiagram
 
 ## Guardrails
 
-Three hooks act as a safety net regardless of what any agent decides — two block, one reminds. (A fourth, `metrics-subagent.sh`, is telemetry-only, and `review-gate.sh` also logs each opened PR; see [Self-tuning](#self-tuning-measure--score--re-allocate).)
+Four hooks act as a safety net regardless of what any agent decides — two block, one asks the user, one reminds. (A fourth, `metrics-subagent.sh`, is telemetry-only, and `review-gate.sh` also logs each opened PR; see [Self-tuning](#self-tuning-measure--score--re-allocate).)
 
 ```mermaid
 flowchart LR
@@ -477,6 +478,7 @@ flowchart LR
 ```
 
 - **`protect-files.sh`** (PreToolUse on `Edit|Write|MultiEdit`) — blocks writes to `.env*`, `*.pem`, `*.key`, `secrets/`, `.github/workflows/`, and `migrations/` (matched whether the path is absolute or root-relative). Exits `2`, and its stderr is fed back to the agent so it knows *why* it was blocked.
+- **`test-guard.sh`** (PreToolUse on `Edit|Write|MultiEdit`) — on test files, test-runner config and workflows, compares the new text with the text it replaces and returns `permissionDecision: "ask"` when the edit adds a way to silence a test: `.skip`/`.only`/`xit`/`markTestSkipped`, a commented-out test, `expect(true).toBe(true)`/`assertTrue(true)`, retries, `--passWithNoTests`, `|| true` after a test command or `continue-on-error`. The user approves or rejects in the normal permission prompt; the reason tells the agent to investigate instead. Pairs with the `test-guard` skill.
 - **`review-gate.sh`** (PreToolUse on `Bash`) — when a command contains `gh pr create`, injects the mandatory review-gate checklist as additional context. Non-blocking: it reminds, the agent still decides. Ported from pick-tour, the kit's reference project. The same script on `PostToolUse` logs the opened PR (telemetry only).
 - **`verify.sh`** (Stop) — before an agent is allowed to finish, runs `tsc --noEmit` (only if `tsconfig.json` exists), then, if `package.json` lists Vitest, `vitest related --run` on changed + untracked source files (the full suite is CI's job). A docs-only change skips cleanly. On failure it emits a `block` decision with the tail of the output, forcing a fix before completion, and records the failing step + last 20 output lines to the verify telemetry event. 300s timeout; guards against infinite Stop-hook loops.
 
@@ -503,6 +505,7 @@ The kit ships a set of skills (loaded automatically by Claude when relevant) and
 | `context-checkpoint` | Keep long sessions healthy: persist plan/SOT/rules, then hand the user `/compact` or `/clear` + a resume prompt — never mid-task | pick-tour |
 | `ui-prototype` | Throwaway UX prototype (one HTML file, real design tokens, state machine) published as an Artifact or gist and linked into the issue as the behavior spec — Epic Flow step 2 | pick-tour |
 | `ui-verify` | Post-implementation UI check: static token rules → computed WCAG contrast per theme → live Playwright at 375/768/1280 | pick-tour |
+| `test-guard` | Honest tests, cheap CI: `create` (coverage matrix → lowest trustworthy layer → `red-check.sh` proves each test can fail), `audit` (`test-smells.py`: tautological, disabled, commented, assertion-free, loosened gates; delete only with evidence), `optimize [--ultra]` (`ci-usage.py` billed minutes per job → blast-radius lanes + `ci-gate`, CI changes as proposals) | kit |
 | `e2e-visual-proof` | Camera for the L-tier e2e pass: step screenshots (desktop/phone/both) → fix visible UI bugs → one self-contained proof page (`build-proof-page.py`) for the PR | pick-tour |
 | `github-issue-flow` | Change request → labeled issue before code → branch/PR linked → manual close after merge when PRs base a non-default branch | pick-tour |
 | `add-bug-to-github` | File a known bug into the `ai` work queue with kind/severity labels, after de-duplication | pick-tour |
