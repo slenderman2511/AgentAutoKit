@@ -100,7 +100,8 @@
       "Bash(git commit:*)",
       "Bash(git push:*)",
       "Bash(gh pr create:*)",
-      "Bash(gh pr merge:*)"
+      "Bash(gh pr merge:*)",
+      "mcp__markitdown__convert_to_markdown"
     ]
   },
   "hooks": {

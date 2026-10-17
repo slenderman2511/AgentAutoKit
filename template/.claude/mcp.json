@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "markitdown": {
+      "command": "uvx",
+      "args": ["--exclude-newer", "2026-10-15T00:00:00Z", "--python", "3.12", "--from", "markitdown-mcp==0.0.1a7", "markitdown-mcp"],
+      "env": { "MARKITDOWN_ENABLE_PLUGINS": "false" }
+    }
+  }
+}

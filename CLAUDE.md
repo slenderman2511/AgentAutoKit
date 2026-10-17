@@ -1,7 +1,8 @@
 # AgentAutoKit — developing the kit
 
 This file is for sessions that work ON the kit itself. It is not installed into projects
-(`scripts/init.sh` copies only `template/.claude/`, and the plugin ships `agents/`, `commands/`,
+(`scripts/init.sh` copies only `template/.claude/` — plus a root `CLAUDE.md`, and with `--with-mcp` a
+root `.mcp.json` (from `template/.claude/mcp.json`, opt-in, never overwritten) — and the plugin ships `agents/`, `commands/`,
 `hooks/`, `skills/`, `settings.json`).
 
 ## Reference project: pick-tour — the kit follows it
@@ -22,12 +23,19 @@ production and is where process improvements are proven first. When evolving the
 
 - Plugin surface: `agents/`, `commands/`, `hooks/` (+ `hooks/hooks.json`), `skills/`, `settings.json`.
 - Template surface: `template/.claude/` (+ `settings.json` with permissions, `rules/`, `workflows/`,
-  `CLAUDE.md` → project root).
+  `CLAUDE.md` → project root, `mcp.json` → project-root `.mcp.json` only with `init.sh --with-mcp`; `init.sh` skips both in
+  the `.claude/` copy loop and never edits an existing project `.mcp.json`).
 - Agents, `/init-kit`, hooks and scripts must stay byte-identical across both surfaces; only the
   script paths in `commands/kit-stats.md` / `kit-tune.md` differ (`${CLAUDE_PLUGIN_ROOT}` vs
   `.claude/scripts`). Check with `diff -rq agents template/.claude/agents` (and commands, hooks).
 - Bump `version` in `.claude-plugin/plugin.json` on every behavior change — Claude Code only
   re-pulls a plugin when it changes.
+- Every release: refresh the `--exclude-newer <date>` pin (uv ignores newer transitive releases of
+  the MarkItDown MCP) everywhere it appears: `template/.claude/mcp.json`, the `MCP_ADD` string in
+  `scripts/init.sh`, `README.md`, the template `CLAUDE.md`, `skills/intake-document/SKILL.md`,
+  `skills/intake-document/scripts/intake.py` and `scripts/selftest.py` (and the same files under
+  `template/.claude/skills/`). Find them all with `grep -rn 'exclude-newer' .`; re-run the MCP smoke test
+  (`uvx --exclude-newer <date> --python 3.12 --from markitdown-mcp==<ver> markitdown-mcp --help`).
 
 ## Skills — porting from pick-tour
 
@@ -41,7 +49,7 @@ production and is where process improvements are proven first. When evolving the
   `next-best-practices` was removed from the kit for this reason).
 - **pick-tour workflow skill** (context-checkpoint, ui-*, github-issue-*): generalize — project
   facts come from the template `CLAUDE.md` sections "Design system", "Source of truth",
-  "Issue tracking", "Git workflow".
+  "Document intake", "Issue tracking", "Git workflow".
 - **Domain skills** (`roster-import`, `firestore-config-edit`, `e2e-flow`) stay pickleball-specific
   and are refreshed verbatim from pick-tour.
 - Same name, different skill: `accessibility` (kit's own, fuller than pick-tour's addyosmani one)

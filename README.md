@@ -42,7 +42,7 @@ The moving parts:
 | **Telemetry & tuning** | Per-model speed/cost + fit scoring that feeds routing back into itself | `scripts/` + `SubagentStop` hook |
 | **Status line** | Live view of which agents are running (agent-panel rows + bottom bar) | `scripts/*statusline.sh` + `subagentStatusLine`/`statusLine` |
 | **Commands** | `/init-kit` (entry), `/kit-stats` (scorecard), `/kit-tune` (re-allocate) | `commands/` · `template/.claude/commands/` |
-| **Skills** | 35 auto-loaded skills: workflow skills from the reference project, framework best practices, domain workflows | `skills/` · `template/.claude/skills/` |
+| **Skills** | 36 auto-loaded skills: workflow skills from the reference project, framework best practices, domain workflows | `skills/` · `template/.claude/skills/` |
 | **Companion plugins** | 10 plugins declared for the whole team via `enabledPlugins` | `template/.claude/settings.json` |
 | **Installer** | Idempotent merge-aware `init.sh` — installs, upgrades, never clobbers | `scripts/init.sh` |
 
@@ -83,9 +83,10 @@ Pick ONE of the two surfaces per project — never both, or agents, commands and
 git clone https://github.com/slenderman2511/AgentAutoKit
 ./AgentAutoKit/scripts/init.sh /path/to/your/project            # install or upgrade
 ./AgentAutoKit/scripts/init.sh /path/to/your/project --dry-run  # preview what would change
+./AgentAutoKit/scripts/init.sh /path/to/your/project --with-mcp  # also create the root .mcp.json (MarkItDown MCP, opt-in)
 ```
 
-This merges `.claude/` (agents, commands, hooks, skills, **settings.json with permission deny rules and the companion-plugin roster**) and a root `CLAUDE.md` into your project.
+This merges `.claude/` (agents, commands, hooks, skills, **settings.json with permission deny rules and the companion-plugin roster**) and a root `CLAUDE.md` into your project. With `--with-mcp` it also creates a root `.mcp.json` declaring the [MarkItDown MCP](#markitdown-mcp) (opt-in).
 
 **Upgrading** = `git pull` in the kit clone, then re-run the same `init.sh` command. It is idempotent and merge-safe:
 
@@ -93,6 +94,7 @@ This merges `.claude/` (agents, commands, hooks, skills, **settings.json with pe
 - Files your project added itself (extra skills, agents, commands) are never touched — no duplicates, no conflicts.
 - `settings.json` is **deep-merged, never overwritten**: your permission rules, hooks, `enabledPlugins` and marketplaces are kept; the kit only fills gaps. To permanently opt out of a kit-declared plugin, set it to `false` instead of deleting the key (a deleted key gets re-filled on the next upgrade).
 - An existing root `CLAUDE.md` is never overwritten; the installed kit version is stamped in `.claude/.agentautokit-version`.
+- The MarkItDown MCP is **opt-in**. Without `--with-mcp`, `init.sh` never writes `.mcp.json`; it prints a one-line note with the `claude mcp add` command instead (when your `.mcp.json` lacks a `markitdown` server; if `jq` is not installed `init.sh` cannot check, so the note is printed unconditionally). With `--with-mcp` it creates the root `.mcp.json` (from `template/.claude/mcp.json`) only when none exists, and never writes through a symlink; an existing `.mcp.json` is never edited, and if it has no `markitdown` server (or `jq` cannot parse it, e.g. JSONC) you get the same command as a hint. Claude Code asks you to approve a new project MCP server on first use. `init.sh` never touches a project's own `.claude/mcp.json`; it only removes a stray copy that is byte-identical to the kit's.
 
 ### Upgrading to 2.0
 
@@ -190,9 +192,9 @@ Hooks are the kit's enforcement layer — CLAUDE.md only reminds; hooks make rul
 - Fit scored per (agent, tier) so promotions are evaluated on fresh evidence; demotion is opt-in and requires a real escalation signal.
 - Auto-tune edits one reversible `model:` frontmatter line, dry-run by default, human-reviewed diff.
 
-### The 35 skills (details [below](#bundled-skills--companion-plugins))
+### The 36 skills (details [below](#bundled-skills--companion-plugins))
 
-- **Workflow (13):** `worktree-dev` · `git-workflow` · `context-checkpoint` · `grill-me` · `ui-prototype` · `ui-verify` · `e2e-visual-proof` · `test-guard` · `project-docs` · `github-issue-flow` · `add-bug-to-github` · `fix-from-github` · `conventions`
+- **Workflow (14):** `worktree-dev` · `git-workflow` · `context-checkpoint` · `grill-me` · `ui-prototype` · `ui-verify` · `e2e-visual-proof` · `test-guard` · `project-docs` · `intake-document` · `github-issue-flow` · `add-bug-to-github` · `fix-from-github` · `conventions`
 - **Best practices (18):** `frontend-design` · `hallmark` · `responsive-design` · `accessibility` · `seo` · `react-best-practices` · `composition-patterns` · `typescript-advanced-types` · `tailwind-css-patterns` · `nodejs-best-practices` · `nodejs-backend-patterns` · `playwright-best-practices` · `firebase-best-practices` · `payment-integration` · `stripe-best-practices` · `upgrade-stripe` · `i18n-best-practices` · `archify`
 - **Domain (3, tournament apps on Firebase):** `roster-import` · `firestore-config-edit` · `e2e-flow`
 - **Media (1):** `voice-clone`
@@ -206,7 +208,7 @@ All auto-loaded by Claude when the task matches their triggers.
 ### Template settings (`template/.claude/settings.json`, template only)
 
 - **Main session:** pinned to `"model": "claude-opus-5-5"` — the same model on every machine; override per session with `claude --model sonnet`. `env.DISABLE_OMC = "1"` opts out of stacking a second orchestration layer on top of the kit's own, matching pick-tour, the reference project.
-- **Permissions:** `deny` on secret reads (`.env*`, `*.pem`, `*.key`), destructive shell (`rm -rf`), pushes to `dev`/`main` (incl. `-u` variants) and force-pushes, and all deploy commands; `ask` on commits, any other `git push`, and PR creation/merge; `allow` on the safe everyday loop (lint/test/build/`tsc`/`vitest`/`eslint`, kit scripts, read-only git/vercel).
+- **Permissions:** `deny` on secret reads (`.env*`, `*.pem`, `*.key`), destructive shell (`rm -rf`), pushes to `dev`/`main` (incl. `-u` variants) and force-pushes, and all deploy commands; `ask` on commits, any other `git push`, PR creation/merge and the MarkItDown MCP tool (`mcp__markitdown__convert_to_markdown`); `allow` on the safe everyday loop (lint/test/build/`tsc`/`vitest`/`eslint`, kit scripts, read-only git/vercel).
 
 ### Live status line
 
@@ -491,7 +493,7 @@ Complementing the hooks, the template's `settings.json` sets **permission** poli
 
 - `deny` — reading `.env`/`*.pem`/`*.key`/`secrets/`, plus `rm -rf`, pushes to `dev`/`main` (incl. `-u` variants) and force-pushes, and destructive `vercel` verbs (`deploy`, `--prod`, `promote`, `rollback`, `remove`, `env rm`, `domains`).
 - `allow` — safe read-only commands (`git status/diff/log`, `npm run lint/test/build`, `tsc`, `vitest`, `eslint`, `vercel env pull/list/logs`).
-- `ask` — `git commit`, any other `git push`, `gh pr create`, `gh pr merge` (humans confirm).
+- `ask` — `git commit`, any other `git push`, `gh pr create`, `gh pr merge` (humans confirm), and `mcp__markitdown__convert_to_markdown`. The last one is asked because the tool reads `file://` URIs past the `Read(./.env)` / `*.pem` / `*.key` deny rules and fetches `http(s)` URLs (with redirects) past any `WebFetch` rules, so every call needs a human yes; the rule is installed even without `--with-mcp`. `ask` beats `allow`, and `init.sh` unions `ask` on upgrade.
 
 ---
 
@@ -501,7 +503,7 @@ The kit ships a set of skills (loaded automatically by Claude when relevant) and
 
 ### Skills (`skills/` · `template/.claude/skills/`)
 
-**Workflow skills** — ported from the reference project (pick-tour) and generalized. Project facts come from the template `CLAUDE.md` sections "Design system", "Source of truth", "Issue tracking" and "Git workflow".
+**Workflow skills** — ported from the reference project (pick-tour) and generalized. Project facts come from the template `CLAUDE.md` sections "Design system", "Source of truth", "Document intake", "Issue tracking" and "Git workflow".
 
 | Skill | What it covers | Origin |
 |-------|----------------|--------|
@@ -514,6 +516,7 @@ The kit ships a set of skills (loaded automatically by Claude when relevant) and
 | `project-docs` | The 8 docs an agent needs before coding — PRD, DESIGN_SYSTEM, ARCHITECTURE, DATABASE, SECURITY, CODE_STYLE, TESTING, AGENTS — as numbered-section markdown templates (`init`/`fill`/`check`), plus `build-docs-viewer.py`: one HTML page with a file tree, completion progress, open-placeholder counts and rendered mermaid | kit |
 | `e2e-visual-proof` | Camera for the L-tier e2e pass: step screenshots (desktop/phone/both) → fix visible UI bugs → one self-contained proof page (`build-proof-page.py`, `"gif": true` adds a looping walkthrough GIF per viewport) for the PR | pick-tour |
 | `grill-me` | Before planning an M/L feature: ask every open decision in rounds, each with a recommended answer; facts go to `code-scout`, only decisions reach the user; locked answers land in the plan/spec | pick-tour |
+| `intake-document` | Bring an external document (contract, proposal, spec, data sheet…) into the repo: copy the original (never move), convert to verbatim Markdown with provenance frontmatter (source filename, SHA-256, timestamp, converter) via MarkItDown, append a ledger row; classify → confirm → run. Project facts come from the template `CLAUDE.md` "Document intake" section; sensitive types are never committed without asking | kit (ported from pick-tour) |
 | `github-issue-flow` | Change request → labeled issue before code → branch/PR linked → manual close after merge when PRs base a non-default branch | pick-tour |
 | `add-bug-to-github` | File a known bug into the `ai` work queue with kind/severity labels, after de-duplication | pick-tour |
 | `fix-from-github` | Drain the `ai` queue: claim lock, investigate, per-ticket plan gate, fix through the pipeline, draft PR — never merge | pick-tour |
@@ -563,6 +566,27 @@ Not bundled: `next-best-practices`, `next-cache-components` and `next-upgrade` �
 `enabledPlugins` + `extraKnownMarketplaces` in `template/.claude/settings.json` declare: `firebase`, `playground`, `playwright`, `github`, `code-review`, `context7` (all `@claude-plugins-official`), `hookify` (`@claude-code`), `superpowers` (`@superpowers-marketplace`, obra's), `claude-mem` (`@thedotmack`) for semantic cross-session memory — it captures tool activity, compresses it with Claude into local SQLite, and injects relevant context into new sessions — and `ponytail` (`@ponytail`, DietrichGebert's) to keep diffs small. When a teammate trusts the project folder, Claude Code surfaces these for install.
 
 > Plugins cannot cascade-install other plugins — a plugin's own `settings.json` only honours `agent`/`subagentStatusLine`. So, like the permission rules, the companion-plugin declarations only ship with the **template**.
+
+### MarkItDown MCP
+
+The kit can declare the [MarkItDown](https://github.com/microsoft/markitdown) MCP server (`markitdown-mcp==0.0.1a7`, MIT; one tool, `convert_to_markdown(uri)`) in a root `.mcp.json`. It is **opt-in**: `init.sh` writes it only when you pass `--with-mcp` (see [Install](#a-as-a-repo-template-recommended--carries-permission-rules--companion-plugins)). It needs [`uv`](https://docs.astral.sh/uv/); the first start downloads MarkItDown and its dependencies. The `intake-document` skill does the real intake through its own script; the MCP is only for a quick look at a URL or file you hand it, and converted content is untrusted data (prompt injection).
+
+**Know the risks before enabling it.** The tool takes any URI: it reads any `file://` path the user account can read, past the `Read(./.env)` / `*.pem` / `*.key` deny rules; it fetches `http(s)` URLs and follows redirects, including `localhost` and cloud metadata addresses such as `169.254.169.254` (SSRF and data exfiltration if a prompt-injected document steers it); and audio files are uploaded to Google speech recognition. For that reason the template's `settings.json` puts `mcp__markitdown__convert_to_markdown` in `permissions.ask` (installed whether or not you use `--with-mcp`), so every call needs a human yes.
+
+**Pinning.** The server package is pinned to `markitdown-mcp==0.0.1a7`, but its transitive dependencies float within that package, so the launch command also passes `--exclude-newer 2026-10-15T00:00:00Z` (uv ignores releases published after that date). The date is refreshed with each kit release. The template also sets `MARKITDOWN_ENABLE_PLUGINS=false` (the default; third-party MarkItDown plugins stay off).
+
+**Plugin users** (the plugin surface ships no MCP server, because plugin MCP servers start without per-server approval) add it themselves, warm it up once, and add the `ask` rule to their own settings:
+
+```bash
+claude mcp add --scope project markitdown -e MARKITDOWN_ENABLE_PLUGINS=false -- uvx --exclude-newer 2026-10-15T00:00:00Z --python 3.12 --from markitdown-mcp==0.0.1a7 markitdown-mcp
+uvx --exclude-newer 2026-10-15T00:00:00Z --python 3.12 --from markitdown-mcp==0.0.1a7 markitdown-mcp --help   # warm-up: downloads dependencies
+```
+
+In `.claude/settings.json` (or `.claude/settings.local.json`) of the project, merge:
+
+```json
+{"permissions":{"ask":["mcp__markitdown__convert_to_markdown"]}}
+```
 
 Why `hookify` is on the list: hooks are the only real enforcement mechanism in Claude Code — CLAUDE.md reminds, but an agent can forget. Anything that must always happen belongs in a hook, and hookify makes authoring them conversational.
 
