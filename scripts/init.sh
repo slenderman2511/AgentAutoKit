@@ -12,14 +12,25 @@
 #     (union for permission lists and plugin/marketplace maps)
 #
 # Usage:
-#   ./init.sh /path/to/your/project            # install or upgrade
-#   ./init.sh /path/to/your/project --dry-run  # show what would change
+#   ./init.sh /path/to/your/project                        # install or upgrade
+#   ./init.sh /path/to/your/project --dry-run              # show what would change
+#   ./init.sh /path/to/your/project --with-mcp             # also create the root .mcp.json
+#                                                          # (MarkItDown MCP, opt-in; never edits an existing one)
 set -e
 
-TARGET="${1:-.}"
+TARGET=""
 DRY=0
-if [ "$1" = "--dry-run" ]; then TARGET="."; DRY=1; fi
-[ "$2" = "--dry-run" ] && DRY=1
+WITH_MCP=0
+for arg in "$@"; do
+  case "$arg" in
+    --dry-run)  DRY=1 ;;
+    --with-mcp) WITH_MCP=1 ;;
+    -*) echo "Error: unknown option $arg (usage: init.sh [project-dir] [--dry-run] [--with-mcp])" >&2; exit 1 ;;
+    *)  if [ -n "$TARGET" ]; then echo "Error: unexpected extra argument $arg (usage: init.sh [project-dir] [--dry-run] [--with-mcp])" >&2; exit 1; fi
+        TARGET="$arg" ;;
+  esac
+done
+TARGET="${TARGET:-.}"
 
 KIT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 SRC="$KIT_DIR/template/.claude"
@@ -66,6 +77,8 @@ while IFS= read -r src_file; do
 
   # CLAUDE.md is placed at the project root (handled below), never in .claude/.
   [ "$rel" = "CLAUDE.md" ] && continue
+  # mcp.json is placed at the project root as .mcp.json (handled below), never in .claude/.
+  [ "$rel" = "mcp.json" ] && continue
 
   if [ ! -f "$dest_file" ]; then
     do_copy "$src_file" "$dest_file"
@@ -86,7 +99,7 @@ while IFS= read -r src_file; do
     UPDATED=$((UPDATED + 1))
     echo "  update   $rel"
   fi
-done < <(find "$SRC" -type f | sort)
+done < <(find "$SRC" -type f -not -path '*/__pycache__/*' | sort)
 
 if [ "$DRY" -eq 0 ]; then
   chmod +x "$DEST/hooks/"*.sh "$DEST/scripts/"*.sh 2>/dev/null || true
@@ -100,6 +113,36 @@ if [ ! -f "$TARGET/CLAUDE.md" ] && [ -f "$SRC/CLAUDE.md" ]; then
 fi
 # The canonical CLAUDE.md lives at the project root; drop the copy nested in .claude/.
 [ "$DRY" -eq 0 ] && rm -f "$DEST/CLAUDE.md"
+
+# MarkItDown MCP server declaration — OPT-IN (--with-mcp). Claude Code reads
+# project MCP servers from the project-root .mcp.json, not from .claude/.
+# Only ever creates the file: an existing .mcp.json (or a symlink, even a dangling
+# one) carries the project's own MCP servers and is never modified or written through.
+MCP_ADD="claude mcp add --scope project markitdown -e MARKITDOWN_ENABLE_PLUGINS=false -- uvx --exclude-newer 2026-10-15T00:00:00Z --python 3.12 --from markitdown-mcp==0.0.1a7 markitdown-mcp"
+if [ -f "$SRC/mcp.json" ]; then
+  if [ "$WITH_MCP" -eq 1 ] && [ ! -e "$TARGET/.mcp.json" ] && [ ! -L "$TARGET/.mcp.json" ]; then
+    [ "$DRY" -eq 0 ] && cp "$SRC/mcp.json" "$TARGET/.mcp.json"
+    echo "  install  .mcp.json (project root) — MarkItDown MCP; approve it when Claude Code asks"
+  elif ! command -v jq >/dev/null 2>&1; then
+    # Cannot inspect .mcp.json without jq: do not claim anything about its contents.
+    if [ "$WITH_MCP" -eq 1 ]; then
+      echo "  note     .mcp.json exists; jq not found so it was not checked (left untouched). To add the MarkItDown MCP: $MCP_ADD"
+    else
+      echo "  note     MarkItDown MCP is opt-in: re-run with --with-mcp, or: $MCP_ADD"
+    fi
+  elif ! jq -e '.mcpServers.markitdown' "$TARGET/.mcp.json" >/dev/null 2>&1; then
+    # Missing key, missing file, or a file jq cannot parse (e.g. JSONC).
+    if [ "$WITH_MCP" -eq 1 ]; then
+      echo "  note     .mcp.json has no markitdown server (left untouched). To add it: $MCP_ADD"
+    else
+      echo "  note     MarkItDown MCP is opt-in: re-run with --with-mcp, or: $MCP_ADD"
+    fi
+  fi
+fi
+# Drop a stray byte-identical kit copy nested in .claude/; a project's own .claude/mcp.json stays.
+if [ "$DRY" -eq 0 ] && [ -f "$DEST/mcp.json" ] && cmp -s "$SRC/mcp.json" "$DEST/mcp.json"; then
+  rm -f "$DEST/mcp.json"
+fi
 
 # Ensure personal settings + runtime metrics are gitignored.
 if [ "$DRY" -eq 0 ]; then
