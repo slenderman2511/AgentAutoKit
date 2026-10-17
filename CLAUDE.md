@@ -21,7 +21,7 @@ production and is where process improvements are proven first. When evolving the
 ## Two surfaces, one behavior
 
 - Plugin surface: `agents/`, `commands/`, `hooks/` (+ `hooks/hooks.json`), `skills/`, `settings.json`.
-- Template surface: `template/.claude/` (+ `settings.json` with permissions, `rules/`, `workflows/`,
+- Template surface: `template/.claude/` (+ `settings.json` with permissions, `rules/`, `workflows/`, `ci/`,
   `CLAUDE.md` → project root).
 - Agents, `/init-kit`, hooks and scripts must stay byte-identical across both surfaces; only the
   script paths in `commands/kit-stats.md` / `kit-tune.md` differ (`${CLAUDE_PLUGIN_ROOT}` vs
@@ -81,6 +81,16 @@ directory is current, and `init.sh` copies every file under `template/.claude/` 
 
 ## Verify before claiming done
 
-- `bash -n` on every changed `*.sh`; `jq -e .` on every changed `*.json`.
-- `claude plugin validate . --strict`.
-- `scripts/init.sh <scratch-project> --dry-run`, then a real install into a scratch project.
+Run `ci/kit-check.sh` (all steps, or one: `syntax json surfaces validate install selftest`). It
+automates the list below, SKIPs a step whose tool is missing locally, and prints a PASS/FAIL/SKIP table:
+
+- `bash -n` on every tracked `*.sh` (+ Python syntax of every `*.py`); `jq -e .` on every tracked `*.json`.
+- Both surfaces identical (`diff -rq` agents, commands, hooks, skills, scripts — the by-design differences excepted).
+- `claude plugin validate . --strict` — except the root-`CLAUDE.md` warning newer CLIs raise: this
+  file is dev-only by design, so the runner ignores that one warning and fails on any other.
+- `scripts/init.sh <scratch-project> --dry-run`, then a real install into a scratch git repo, then a no-op re-run.
+- Skill selftests (`skills/launch-check/scripts/selftest.mjs` when present; a smoke of test-guard's scripts).
+
+CI: `ci/kit-ci.workflow.yml` runs the same steps on every PR into `main`. It is a **mirror** —
+agents cannot write `.github/workflows/` — so a human copies it in once, and again after every edit:
+`mkdir -p .github/workflows && cp ci/kit-ci.workflow.yml .github/workflows/kit-ci.yml`.

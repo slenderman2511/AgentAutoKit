@@ -1,0 +1,61 @@
+# MIRROR of .github/workflows/ci.yml — agents edit the mirror; a human copies it into
+# .github/workflows/ci.yml (that path is blocked for agents by .claude/hooks/protect-files.sh).
+# AgentAutoKit installs this starter at .claude/ci/ci.workflow.yml and re-syncs it on upgrade, so
+# keep your project's copy at scripts/workflows/ci.workflow.yml and copy from there:
+#   mkdir -p scripts/workflows .github/workflows
+#   cp .claude/ci/ci.workflow.yml scripts/workflows/ci.workflow.yml   # once; edit this one
+#   cp scripts/workflows/ci.workflow.yml .github/workflows/ci.yml     # human, after each edit
+name: CI
+
+# OPT-IN gate: CI does NOT run on every push. It runs only on demand — add the `run-ci` label to
+# a PR into the integration branch, or trigger it from the Actions tab (once this workflow is on
+# the default branch). Features are tested locally before the PR, so the full typecheck + test
+# suite runs on request. To re-run after new commits, remove and re-add the `run-ci` label.
+# The label only saves minutes; it is not a trust boundary (a PR can edit this file). Safety comes
+# from `pull_request` + read-only permissions + no secrets: never switch to `pull_request_target`
+# and never add `secrets.*` to this job.
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: [dev]   # the integration branch named in CLAUDE.md
+    types: [labeled]
+
+# A newer run for the same ref cancels the in-flight one.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  typecheck-test:
+    # Manual dispatch, or a PR carrying `run-ci`. Checking the PR's labels (not just the label
+    # added) means adding another label re-runs CI instead of cancelling it into a "skipped" pass.
+    if: github.event_name == 'workflow_dispatch' || contains(github.event.pull_request.labels.*.name, 'run-ci')
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '22'   # or node-version-file: .nvmrc
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Typecheck
+        run: npx tsc --noEmit
+
+      - name: Unit tests
+        run: npm test
+
+      # Lint is informational: a lint backlog should not block merges. Promote it to a hard gate
+      # (drop continue-on-error) once the backlog is clear. Never put continue-on-error on a test step.
+      - name: Lint (non-blocking)
+        run: npm run lint
+        continue-on-error: true

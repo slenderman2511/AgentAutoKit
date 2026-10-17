@@ -23,6 +23,7 @@ The workflow itself is ported (and generalized) from the kit's reference project
 - [Bundled skills & companion plugins](#bundled-skills--companion-plugins)
 - [Self-tuning: measure → score → re-allocate](#self-tuning-measure--score--re-allocate)
 - [Live status line — see which agents are running](#live-status-line--see-which-agents-are-running)
+- [Developing the kit](#developing-the-kit)
 - [Customizing](#customizing)
 - [License](#license)
 
@@ -254,6 +255,8 @@ Claude Code auto-loads every `.claude/rules/*.md` file into context, so the kit'
 - **`general.md`** — code style and the mandatory Git workflow (protected branches, PR-only, forbidden commands).
 
 `init.sh` re-syncs these three files on upgrade, same as agents/hooks/commands. The root `CLAUDE.md` template now holds only **project facts** — commands, the integration branch, security-sensitive paths, project-specific gates, project rules — so it stays short and rarely drifts from the rules files.
+
+**`.claude/ci/ci.workflow.yml`** (template only) — a starter CI workflow, ported from pick-tour: opt-in (runs only when a PR into the integration branch gets the `run-ci` label, or on a manual dispatch), `npm ci` → `tsc --noEmit` → `npm test` → lint (non-blocking). It is a **mirror**: agents cannot write `.github/workflows/` (`protect-files.sh`), so the project keeps its copy at `scripts/workflows/ci.workflow.yml` (`init.sh` re-syncs `.claude/ci/` on upgrade) and a human copies it to `.github/workflows/ci.yml`. Plugin-only installs copy it from [`template/.claude/ci/`](template/.claude/ci/ci.workflow.yml).
 
 Also new: **`.claude/workflows/review-branch.js`** (template only) — an opt-in, multi-dimension review of the current branch's diff against a base (default `origin/dev`): one reviewer per dimension (correctness, data isolation & authz, payments & secrets, UI states, performance), each finding then adversarially re-verified before it's reported. Complements, and does not replace, the mandatory `code-reviewer` + `security-auditor` gate.
 
@@ -678,6 +681,10 @@ Per the [plugin reference](https://code.claude.com/docs/en/plugins-reference), a
 > Project settings override a user-level status line, so inside kit projects the bottom bar replaces your global one — edit or remove the block to keep yours. The bottom-bar active-agent rollup assumes the classic CLI transcript layout; it degrades to model + branch elsewhere, while the agent-panel rows use Claude Code's native `tasks[]` data and always work.
 
 ---
+
+## Developing the kit
+
+`ci/kit-check.sh` runs every check a kit change must pass (shell/Python syntax, JSON, plugin ↔ template surfaces identical, `claude plugin validate`, an `init.sh` dry-run + real install + idempotent re-run into a temp git repo, skill selftests) and prints a PASS/FAIL/SKIP table; a step whose tool is missing locally is SKIPPED, in CI it FAILS. [`ci/kit-ci.workflow.yml`](ci/kit-ci.workflow.yml) runs the same steps on every PR into `main` — it is a mirror: copy it in by hand with `mkdir -p .github/workflows && cp ci/kit-ci.workflow.yml .github/workflows/kit-ci.yml`.
 
 ## Customizing
 

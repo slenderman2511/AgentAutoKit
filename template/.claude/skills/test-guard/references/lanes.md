@@ -55,6 +55,11 @@ Use these to speed up a lane, never as the only gate — they miss non-import de
 
 ## 3. Workflow skeleton
 
+Agents cannot write `.github/workflows/` (protect-files), so keep the workflow as a mirror the
+agent edits — `scripts/workflows/<name>.workflow.yml` — and have a human copy it in. Projects
+installed with the kit's template start from `.claude/ci/ci.workflow.yml` (one opt-in job: `npm ci`,
+`tsc --noEmit`, tests, lint non-blocking); grow it into the lanes below once CI cost is measured.
+
 ```yaml
 on:
   pull_request:
