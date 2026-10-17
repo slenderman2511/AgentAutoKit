@@ -27,7 +27,7 @@ need() {  # $1=tool — 0 if present; otherwise SKIP locally (1) or FAIL in CI (
 step_syntax() {
   local f rc=0
   while IFS= read -r -d '' f; do bash -n "$f" || { echo "bash -n failed: $f"; rc=1; }; done < <(git ls-files -z '*.sh')
-  need python3; case $? in 1) return 3 ;; 2) return 1 ;; esac
+  need python3; case $? in 1) return $(( rc ? 1 : 3 )) ;; 2) return 1 ;; esac
   # compile() only: py_compile would drop __pycache__/ into the tree.
   while IFS= read -r -d '' f; do
     python3 -c 'import sys; compile(open(sys.argv[1], encoding="utf-8").read(), sys.argv[1], "exec")' "$f" \
@@ -52,9 +52,15 @@ step_surfaces() {
   diff -rq "${x[@]}" -x hooks.json hooks template/.claude/hooks || rc=1
   diff -rq "${x[@]}" skills template/.claude/skills || rc=1
   diff -rq "${x[@]}" -x init.sh scripts template/.claude/scripts || rc=1
-  for f in commands/kit-stats.md commands/kit-tune.md template/.claude/commands/kit-stats.md template/.claude/commands/kit-tune.md; do
-    [ -f "$f" ] || { echo "missing: $f"; rc=1; }
+  # kit-stats/kit-tune: identical once the plugin's script paths are mapped to the template's.
+  for f in kit-stats.md kit-tune.md; do
+    sed -e 's|"${CLAUDE_PLUGIN_ROOT}"/scripts|.claude/scripts|g' -e 's|${CLAUDE_PLUGIN_ROOT}/scripts|.claude/scripts|g' \
+        -e 's| --agents-dir "$CLAUDE_PROJECT_DIR/.claude/agents"||' "commands/$f" \
+      | diff -q - "template/.claude/commands/$f" >/dev/null || { echo "commands/$f drifted from the template beyond its script paths"; rc=1; }
   done
+  # Once a human copied the CI mirror in, the two must match.
+  [ ! -f .github/workflows/kit-ci.yml ] || cmp -s ci/kit-ci.workflow.yml .github/workflows/kit-ci.yml \
+    || { echo ".github/workflows/kit-ci.yml differs from its mirror ci/kit-ci.workflow.yml — copy it again"; rc=1; }
   return $rc
 }
 
@@ -64,21 +70,22 @@ step_validate() {
   # Same bar as `claude plugin validate . --strict`, minus one known warning: newer CLIs flag a
   # root CLAUDE.md as "not loaded as project context". Ours is dev-only by design (it documents
   # the kit for sessions working ON it), so that warning is expected; any other warning fails.
-  local out
-  out=$(claude plugin validate . --json) || { echo "$out"; return 1; }
-  echo "$out" | jq -e '
+  local out t filter='
     ([.manifest] + (.contents // [])) as $parts
     | ([$parts[].errors[]?] | length) == 0
       and ([$parts[].warnings[]? | select(.message | startswith("CLAUDE.md at the plugin root") | not)] | length) == 0
-      and .success
-  ' >/dev/null || { echo "$out"; return 1; }
-  claude plugin validate .claude-plugin/plugin.json >/dev/null || { claude plugin validate .claude-plugin/plugin.json; return 1; }
+      and .success'
+  # `.` validates the marketplace (+ the plugin's contents on newer CLIs); the manifest is checked on its own.
+  for t in . .claude-plugin/plugin.json; do
+    out=$(claude plugin validate "$t" --json) && jq -e "$filter" >/dev/null <<<"$out" || { echo "$out"; return 1; }
+  done
 }
 
 step_install() {
   need git; case $? in 1) return 3 ;; 2) return 1 ;; esac
   local tmp out rc=0 ver f
-  tmp=$(mktemp -d "${TMPDIR:-/tmp}/kit-install.XXXXXX")
+  # An empty $tmp would make init.sh install into the kit itself (TARGET defaults to .).
+  tmp=$(mktemp -d "${TMPDIR:-/tmp}/kit-install.XXXXXX") && [ -d "$tmp" ] || { echo "mktemp failed"; return 1; }
   git -C "$tmp" init -q
   # Dry run must not write anything.
   scripts/init.sh "$tmp" --dry-run >/dev/null || { echo "dry-run failed"; rc=1; }
@@ -91,14 +98,14 @@ step_install() {
   done
   [ -e "$tmp/.claude/CLAUDE.md" ] && { echo ".claude/CLAUDE.md should not exist"; rc=1; }
   [ -x "$tmp/.claude/hooks/verify.sh" ] || { echo "hooks not executable"; rc=1; }
-  ver=$(jq -r .version .claude-plugin/plugin.json 2>/dev/null)
+  ver=$(sed -n 's/.*"version"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' .claude-plugin/plugin.json | head -1)
   [ "$(cat "$tmp/.claude/.agentautokit-version" 2>/dev/null)" = "$ver" ] || { echo "version stamp != $ver"; rc=1; }
   for f in .claude/settings.local.json .claude/metrics/ .claude/worktrees/; do
     grep -qxF "$f" "$tmp/.gitignore" || { echo ".gitignore lacks $f"; rc=1; }
   done
   # Re-running is a no-op.
   out=$(scripts/init.sh "$tmp") || { echo "re-run failed"; rc=1; }
-  echo "$out" | grep -q "Done: 0 installed, 0 updated" || { echo "re-run not idempotent:"; echo "$out"; rc=1; }
+  grep -q "Done: 0 installed, 0 updated" <<<"$out" || { echo "re-run not idempotent:"; echo "$out"; rc=1; }
   rm -rf "$tmp"
   return $rc
 }
@@ -106,16 +113,16 @@ step_install() {
 step_selftest() {
   local rc=0 ran=0 tmp out
   if [ -f skills/launch-check/scripts/selftest.mjs ]; then
-    need node; case $? in 1) ;; 2) rc=1 ;; *) ran=1; node skills/launch-check/scripts/selftest.mjs || rc=1 ;; esac
+    need node; case $? in 1) echo "launch-check selftest skipped" ;; 2) rc=1 ;; *) ran=1; node skills/launch-check/scripts/selftest.mjs || rc=1 ;; esac
   fi
   # test-guard has no selftest of its own: smoke its two scripts on throwaway fixtures.
   if need python3 && need git; then
     ran=1
-    tmp=$(mktemp -d "${TMPDIR:-/tmp}/kit-selftest.XXXXXX")
+    tmp=$(mktemp -d "${TMPDIR:-/tmp}/kit-selftest.XXXXXX") && [ -d "$tmp" ] || { echo "mktemp failed"; return 1; }
     printf "it.skip('a', () => { expect(1).toBe(1) })\n" > "$tmp/a.test.ts"
     out=$(python3 skills/test-guard/scripts/test-smells.py scan "$tmp")
-    echo "$out" | grep -q disabled || { echo "test-smells missed it.skip:"; echo "$out"; rc=1; }
-    echo "$out" | grep -q tautology || { echo "test-smells missed a tautology:"; echo "$out"; rc=1; }
+    grep -q disabled <<<"$out" || { echo "test-smells missed it.skip:"; echo "$out"; rc=1; }
+    grep -q tautology <<<"$out" || { echo "test-smells missed a tautology:"; echo "$out"; rc=1; }
     # red-check: the test must fail once the source change is reverted, and the tree comes back.
     git -C "$tmp" init -q && echo old > "$tmp/src.txt" \
       && git -C "$tmp" add src.txt && git -C "$tmp" -c user.email=ci@kit -c user.name=ci commit -qm base

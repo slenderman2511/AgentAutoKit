@@ -11,6 +11,9 @@ name: CI
 # a PR into the integration branch, or trigger it from the Actions tab (once this workflow is on
 # the default branch). Features are tested locally before the PR, so the full typecheck + test
 # suite runs on request. To re-run after new commits, remove and re-add the `run-ci` label.
+# The label only saves minutes; it is not a trust boundary (a PR can edit this file). Safety comes
+# from `pull_request` + read-only permissions + no secrets: never switch to `pull_request_target`
+# and never add `secrets.*` to this job.
 on:
   workflow_dispatch:
   pull_request:
@@ -27,16 +30,19 @@ permissions:
 
 jobs:
   typecheck-test:
-    # Only for a manual dispatch, or when the label just added is `run-ci`.
-    if: github.event_name == 'workflow_dispatch' || github.event.label.name == 'run-ci'
+    # Manual dispatch, or a PR carrying `run-ci`. Checking the PR's labels (not just the label
+    # added) means adding another label re-runs CI instead of cancelling it into a "skipped" pass.
+    if: github.event_name == 'workflow_dispatch' || contains(github.event.pull_request.labels.*.name, 'run-ci')
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
         with:
-          node-version: '20'
+          persist-credentials: false
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '22'   # or node-version-file: .nvmrc
           cache: npm
 
       - name: Install dependencies

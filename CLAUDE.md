@@ -21,7 +21,7 @@ production and is where process improvements are proven first. When evolving the
 ## Two surfaces, one behavior
 
 - Plugin surface: `agents/`, `commands/`, `hooks/` (+ `hooks/hooks.json`), `skills/`, `settings.json`.
-- Template surface: `template/.claude/` (+ `settings.json` with permissions, `rules/`, `workflows/`,
+- Template surface: `template/.claude/` (+ `settings.json` with permissions, `rules/`, `workflows/`, `ci/`,
   `CLAUDE.md` → project root).
 - Agents, `/init-kit`, hooks and scripts must stay byte-identical across both surfaces; only the
   script paths in `commands/kit-stats.md` / `kit-tune.md` differ (`${CLAUDE_PLUGIN_ROOT}` vs

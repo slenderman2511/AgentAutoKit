@@ -20,6 +20,10 @@ automatically. Keep THIS file for facts about this project; edit every `<...>` p
 - Integration branch: `dev` — every PR bases it; only the release flow promotes `dev` → `main`.
 - Deploys: <how this project deploys, e.g. Vercel preview on PR, prod on main>.
 - Details and forbidden commands: `.claude/rules/general.md`.
+- CI workflows are **mirrors**: agents edit `scripts/workflows/<name>.workflow.yml`, a human copies
+  each into `.github/workflows/<name>.yml` (agents are blocked from that path). Starter: copy
+  `.claude/ci/ci.workflow.yml` to `scripts/workflows/` first — never edit it in place, upgrades
+  re-sync it. It runs on the `run-ci` label on a PR into the integration branch, or a manual dispatch.
 
 ## Security-sensitive paths
 _Any PR that touches these triggers `security-auditor`._
@@ -31,9 +35,6 @@ _Any PR that touches these triggers `security-auditor`._
 ## Project-specific gates
 _Run before every PR, in addition to `npx tsc --noEmit`._
 - <e.g. `npm run lint`, a custom check script — delete this line if none>
-- CI workflows are **mirrors**: agents edit `scripts/workflows/<name>.workflow.yml`, a human copies
-  each into `.github/workflows/<name>.yml` (agents are blocked from that path). Starter: `.claude/ci/ci.workflow.yml`
-  — opt-in via the `run-ci` label on a PR into the integration branch, or a manual dispatch.
 
 ## Project rules
 - <Invariants every agent must respect — data isolation, naming conventions, domain rules.
@@ -66,6 +67,6 @@ _Read by `github-issue-flow`, `add-bug-to-github`, `fix-from-github`, `ui-protot
 
 ## Rules (non-negotiable — also enforced by hooks/permissions)
 - Never push to `dev`/`main`, merge PRs, deploy, or `rm -rf`. Humans own releases.
-- Never read or write `.env*`, secrets, CI workflows, or migrations.
+- Never read or write `.env*`, secrets, `.github/workflows/` (edit the mirror instead), or migrations.
 - Done = green exit code: `tsc --noEmit` clean and the related tests green before finishing.
 - New or changed logic ships with tests.

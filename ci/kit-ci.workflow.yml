@@ -1,5 +1,6 @@
-# MIRROR of .github/workflows/kit-ci.yml — agents edit THIS file; a human copies it into
-# .github/workflows/kit-ci.yml (that path is blocked for agents by hooks/protect-files.sh):
+# MIRROR of .github/workflows/kit-ci.yml — agents edit the mirror (ci/kit-ci.workflow.yml); a human
+# copies it into .github/workflows/kit-ci.yml (blocked for agents by hooks/protect-files.sh), and
+# `ci/kit-check.sh surfaces` fails while the two differ:
 #   mkdir -p .github/workflows && cp ci/kit-ci.workflow.yml .github/workflows/kit-ci.yml
 # Every step calls ci/kit-check.sh, so the same checks run locally with `ci/kit-check.sh`.
 name: Kit CI
@@ -24,31 +25,40 @@ jobs:
     env:
       KIT_CI: '1'   # a missing tool fails the step instead of skipping it
     steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
         with:
-          node-version: '20'
+          persist-credentials: false
+
+      # The CLI needs Node >= 22: on older Node, npm silently picks a CLI without `validate --json`.
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '22'
 
       # ubuntu-latest ships bash, jq, git and python3. The Claude Code CLI is only needed for
-      # `claude plugin validate` (a local manifest check: no login, no API key).
+      # `claude plugin validate` (a local manifest check: no login, no API key). Pinned so a CLI
+      # release cannot change the validate output under us; bump it on purpose.
       - name: Install Claude Code CLI
-        run: npm install -g @anthropic-ai/claude-code
+        run: npm install -g @anthropic-ai/claude-code@2.1.302
 
       - name: Shell + Python syntax
         run: ci/kit-check.sh syntax
 
       - name: JSON validity
+        if: ${{ !cancelled() }}   # report every check, not just the first failure
         run: ci/kit-check.sh json
 
       - name: Plugin and template surfaces identical
+        if: ${{ !cancelled() }}
         run: ci/kit-check.sh surfaces
 
       - name: Plugin manifest (claude plugin validate)
+        if: ${{ !cancelled() }}
         run: ci/kit-check.sh validate
 
       - name: init.sh dry-run + install into a temp repo
+        if: ${{ !cancelled() }}
         run: ci/kit-check.sh install
 
       - name: Skill selftests
+        if: ${{ !cancelled() }}
         run: ci/kit-check.sh selftest
